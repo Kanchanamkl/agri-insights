@@ -1,0 +1,178 @@
+from flask import Blueprint, request, jsonify
+from pydantic import ValidationError
+from typing import Dict, Any
+import logging
+
+from ..api.schemas import (
+    PredictionRequest,
+    PredictionResponse,
+    ErrorResponse
+)
+from ..ml.feature_mapper import FeatureMapper
+from ..ml.predictor import Predictor
+from ..db.repository import PredictionRepository
+from ..utils.time_utils import get_current_timestamp
+
+logger = logging.getLogger('micfrs.routes')
+
+def create_routes(model_registry, db_manager) -> Blueprint:
+    """
+    Create Flask blueprint with routes
+    
+    Args:
+        model_registry: ModelRegistry instance
+        db_manager: Database manager instance
+        
+    Returns:
+        Flask Blueprint
+    """
+    bp = Blueprint('api', __name__)
+    predictor = Predictor(model_registry)
+    
+    @bp.route('/health', methods=['GET'])
+    def health_check():
+        """Health check endpoint"""
+        try:
+            is_ready = model_registry.is_ready()
+            
+            return jsonify({
+                'status': 'healthy' if is_ready else 'initializing',
+                'models_loaded': is_ready,
+                'model_version': model_registry.get_model_version(),
+                'timestamp': get_current_timestamp()
+            }), 200 if is_ready else 503
+            
+        except Exception as e:
+            logger.error(f"Health check failed: {str(e)}")
+            return jsonify({
+                'status': 'unhealthy',
+                'error': str(e)
+            }), 500
+    
+    @bp.route('/predict', methods=['POST'])
+    def predict():
+        """Main prediction endpoint"""
+        try:
+            # Validate request
+            request_data = request.get_json()
+            
+            try:
+                validated_request = PredictionRequest(**request_data)
+            except ValidationError as e:
+                logger.warning(f"Validation error: {str(e)}")
+                return jsonify(ErrorResponse(
+                    error="Invalid request format",
+                    details=e.errors()
+                ).dict()), 400
+            
+            # Map features
+            features = FeatureMapper.map_request_to_features(request_data)
+            FeatureMapper.validate_features(features)
+            features_df = FeatureMapper.features_to_dataframe(features)
+            
+            # Make predictions
+            predictions = predictor.predict(features_df)
+            
+            # Build response
+            response_data = {
+                'success': True,
+                'crop': predictions['crop'],
+                'fertilizer': predictions['fertilizer'],
+                'remark': predictions['remark'],
+                'meta': {
+                    'model_version': model_registry.get_model_version(),
+                    'timestamp': get_current_timestamp()
+                }
+            }
+            
+            # Save to database
+            try:
+                with db_manager.get_session() as session:
+                    PredictionRepository.create_prediction_log(
+                        session,
+                        request_data,
+                        response_data,
+                        model_registry.get_model_version()
+                    )
+            except Exception as db_error:
+                logger.error(f"Database error: {str(db_error)}")
+                # Continue anyway - prediction succeeded
+            
+            return jsonify(response_data), 200
+            
+        except ValueError as e:
+            logger.warning(f"Value error: {str(e)}")
+            return jsonify(ErrorResponse(error=str(e)).dict()), 400
+            
+        except Exception as e:
+            logger.error(f"Prediction error: {str(e)}", exc_info=True)
+            return jsonify(ErrorResponse(
+                error="Internal server error",
+                details={'message': str(e)}
+            ).dict()), 500
+    
+    @bp.route('/predict/crop', methods=['POST'])
+    def predict_crop_only():
+        """Crop-only prediction endpoint"""
+        try:
+            request_data = request.get_json()
+            validated_request = PredictionRequest(**request_data)
+            
+            features = FeatureMapper.map_request_to_features(request_data)
+            features_df = FeatureMapper.features_to_dataframe(features)
+            
+            crop_pred, crop_probs = predictor._predict_with_proba(
+                model_registry.crop_model,
+                features_df
+            )
+            crop_result = predictor._format_prediction(crop_pred, crop_probs, 3)
+            
+            return jsonify({
+                'success': True,
+                'crop': crop_result,
+                'meta': {
+                    'model_version': model_registry.get_model_version(),
+                    'timestamp': get_current_timestamp()
+                }
+            }), 200
+            
+        except Exception as e:
+            logger.error(f"Crop prediction error: {str(e)}")
+            return jsonify(ErrorResponse(error=str(e)).dict()), 500
+    
+    @bp.route('/predict/fertilizer', methods=['POST'])
+    def predict_fertilizer_only():
+        """Fertilizer-only prediction endpoint"""
+        try:
+            request_data = request.get_json()
+            validated_request = PredictionRequest(**request_data)
+            
+            features = FeatureMapper.map_request_to_features(request_data)
+            features_df = FeatureMapper.features_to_dataframe(features)
+            
+            fert_pred, fert_probs = predictor._predict_with_proba(
+                model_registry.fertilizer_model,
+                features_df
+            )
+            fert_result = predictor._format_prediction(fert_pred, fert_probs, 3)
+            
+            remark = model_registry.fertilizer_remark_map.get(
+                fert_pred[0],
+                "No specific remark available"
+            )
+            
+            return jsonify({
+                'success': True,
+                'fertilizer': fert_result,
+                'remark': remark,
+                'meta': {
+                    'model_version': model_registry.get_model_version(),
+                    'timestamp': get_current_timestamp()
+                }
+            }), 200
+            
+        except Exception as e:
+            logger.error(f"Fertilizer prediction error: {str(e)}")
+            return jsonify(ErrorResponse(error=str(e)).dict()), 500
+    
+    return bp
