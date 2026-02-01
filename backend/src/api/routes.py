@@ -8,8 +8,8 @@ from ..api.schemas import (
     PredictionResponse,
     ErrorResponse
 )
-from ..ml.feature_mapper import FeatureMapper
-from ..ml.predictor import Predictor
+from ml.feature_mapper import FeatureMapper
+from ml.predictor import Predictor
 from ..db.repository import PredictionRepository
 from ..utils.time_utils import get_current_timestamp
 

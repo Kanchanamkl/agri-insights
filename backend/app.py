@@ -6,7 +6,7 @@ import logging
 from config import Config
 from src.utils.logging_config import setup_logging
 from src.db.database import Database
-from src.ml.model_registry import ModelRegistry
+from ml.model_registry import ModelRegistry
 from src.api.routes import create_routes
 
 # Initialize configuration
