@@ -31,14 +31,18 @@ class FeatureMapper:
         Returns:
             Dictionary with model feature names as keys
         """
+        logger.info("Starting feature mapping...")
         features = {}
         
         for model_feature, request_path in cls.FEATURE_MAP.items():
             value = cls._get_nested_value(request_data, request_path)
             if value is None:
                 logger.warning(f"Missing value for feature: {model_feature} (path: {request_path})")
+            else:
+                logger.debug(f"Mapped {model_feature} = {value} (from {request_path})")
             features[model_feature] = value
         
+        logger.info(f"Feature mapping complete. Total features: {len(features)}")
         return features
     
     @staticmethod
@@ -60,6 +64,7 @@ class FeatureMapper:
             if isinstance(value, dict):
                 value = value.get(key)
             else:
+                logger.warning(f"Path {path} not found in data")
                 return None
         
         return value
@@ -75,7 +80,12 @@ class FeatureMapper:
         Returns:
             DataFrame with single row
         """
-        return pd.DataFrame([features])
+        logger.info(f"Converting features to DataFrame: {features}")
+        df = pd.DataFrame([features])
+        logger.info(f"DataFrame created with shape: {df.shape}")
+        logger.info(f"DataFrame columns: {df.columns.tolist()}")
+        logger.info(f"DataFrame values:\n{df.to_string()}")
+        return df
     
     @classmethod
     def validate_features(cls, features: Dict[str, Any]) -> bool:
@@ -88,16 +98,22 @@ class FeatureMapper:
         Returns:
             True if valid, raises ValueError otherwise
         """
+        logger.info("Validating features...")
         required_features = set(cls.FEATURE_MAP.keys())
         provided_features = set(features.keys())
         
         missing = required_features - provided_features
         if missing:
-            raise ValueError(f"Missing required features: {missing}")
+            error_msg = f"Missing required features: {missing}"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
         
         # Check for None values
         none_features = [k for k, v in features.items() if v is None]
         if none_features:
-            raise ValueError(f"Features with None values: {none_features}")
+            error_msg = f"Features with None values: {none_features}"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
         
+        logger.info("✓ All features validated successfully")
         return True

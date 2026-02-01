@@ -11,7 +11,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { generateRecommendation, demoRecommendations } from '@/lib/recommendationEngine';
 import { checkBackendHealth } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
-import { REGIONS, PREVIOUS_CROPS, IRRIGATION_TYPES, MOISTURE_LEVELS } from '@/types';
+import { REGIONS, PREVIOUS_CROPS, IRRIGATION_TYPES, MOISTURE_LEVELS, SOIL_TYPES } from '@/types';
 import { 
   ArrowLeft, 
   ArrowRight, 
@@ -191,6 +191,7 @@ export default function InputForm() {
       if (soil.phosphorus < 0 || soil.phosphorus > 150) newErrors.phosphorus = 'Must be 0-150 ppm';
       if (soil.potassium < 0 || soil.potassium > 300) newErrors.potassium = 'Must be 0-300 ppm';
       if (soil.pH < 3.5 || soil.pH > 9.0) newErrors.pH = 'Must be 3.5-9.0';
+      if (!soil.soilType) newErrors.soilType = 'Please select a soil type'; // Add validation
     }
 
     if (step === 2) {
@@ -379,6 +380,39 @@ export default function InputForm() {
                   unit=""
                   tooltip="pH affects nutrient availability. Most crops prefer 6.0-7.0. Acidic soils may need lime."
                 />
+                
+                {/* Add Soil Type Selection */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Label>Soil Type</Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Type of soil in your field. Different soil types have different water retention and nutrient characteristics.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <Select
+                    value={soil.soilType}
+                    onValueChange={(v) => dispatch({ type: 'SET_SOIL_DATA', payload: { soilType: v } })}
+                  >
+                    <SelectTrigger className={errors.soilType ? 'border-destructive' : ''}>
+                      <SelectValue placeholder="Select soil type..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SOIL_TYPES.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {type}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.soilType && (
+                    <p className="text-sm text-destructive">{errors.soilType}</p>
+                  )}
+                </div>
                 
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">

@@ -6,7 +6,9 @@ const initialSoilData: SoilData = {
   nitrogen: 100,
   phosphorus: 50,
   potassium: 100,
+  carbon: 30,
   pH: 6.5,
+  soilType: 'Loamy',
   moisture: 'medium',
 };
 
@@ -17,10 +19,10 @@ const initialEnvironmentalData: EnvironmentalData = {
 };
 
 const initialFieldData: FieldData = {
-  previousCrop: '',
+  previousCrop: 'Rice',
   irrigationType: 'rainfed',
   landSize: 1,
-  region: '',
+  region: 'Southern',
 };
 
 const initialFormData: FormData = {
@@ -96,9 +98,26 @@ function appReducer(state: AppState, action: Action): AppState {
       return {
         ...state,
         formData: {
-          soil: { nitrogen: 140, phosphorus: 45, potassium: 80, pH: 6.2, moisture: 'medium' },
-          environmental: { rainfall: 180, temperature: 27, humidity: 75 },
-          field: { previousCrop: 'Rice', irrigationType: 'flood', landSize: 2.5, region: 'Central' },
+          soil: {
+            nitrogen: 100,
+            phosphorus: 50,
+            potassium: 100,
+            carbon: 30,
+            pH: 6.5,
+            soilType: 'Loamy',
+            moisture: 'medium',
+          },
+          environmental: {
+            rainfall: 200,
+            temperature: 28,
+            humidity: 70,
+          },
+          field: {
+            previousCrop: 'Rice',
+            irrigationType: 'rainfed',
+            landSize: 1,
+            region: 'Southern',
+          },
         },
       };
     case 'ADD_RECOMMENDATION':

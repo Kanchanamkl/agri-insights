@@ -30,7 +30,7 @@ export interface FormData {
     potassium: number;
     carbon?: number; // Optional, backend will use default if not provided
     pH: number;
-    soilType: string;
+    soilType: string; // REQUIRED - must be present
     moisture: 'low' | 'medium' | 'high';
   };
   environmental: {
@@ -140,4 +140,15 @@ export const MOISTURE_LEVELS = [
   { value: 'low', label: 'Low (Dry)' },
   { value: 'medium', label: 'Medium (Moist)' },
   { value: 'high', label: 'High (Wet)' },
+] as const;
+
+// Soil types for Sri Lanka
+export const SOIL_TYPES = [
+  'Loamy',
+  'Sandy',
+  'Clay',
+  'Black',
+  'Red',
+  'Laterite',
+  'Alluvial',
 ] as const;

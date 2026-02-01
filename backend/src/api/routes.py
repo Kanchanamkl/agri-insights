@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from pydantic import ValidationError
 from typing import Dict, Any
 import logging
+import json
 
 from ..api.schemas import (
     PredictionRequest,
@@ -40,6 +41,8 @@ def create_routes(model_registry, db_manager) -> Blueprint:
         try:
             is_ready = model_registry.is_ready() if model_registry else False
             
+            logger.info(f"Health check requested - Status: {'ready' if is_ready else 'not ready'}")
+            
             return jsonify({
                 'status': 'healthy' if is_ready else 'initializing',
                 'models_loaded': is_ready,
@@ -48,7 +51,7 @@ def create_routes(model_registry, db_manager) -> Blueprint:
             }), 200 if is_ready else 503
             
         except Exception as e:
-            logger.error(f"Health check failed: {str(e)}")
+            logger.error(f"Health check failed: {str(e)}", exc_info=True)
             return jsonify({
                 'status': 'unhealthy',
                 'error': str(e),
@@ -63,26 +66,35 @@ def create_routes(model_registry, db_manager) -> Blueprint:
             return '', 204
             
         try:
+            # Log incoming request
+            request_data = request.get_json()
+            logger.info("="*60)
+            logger.info("Prediction request received")
+            logger.info(f"Request payload: {json.dumps(request_data, indent=2)}")
+            
             if not model_registry or not model_registry.is_ready():
+                logger.error("Models not loaded - cannot process prediction")
                 return jsonify({
                     'success': False,
                     'error': 'Models not loaded. Please train models first.',
                     'details': {'message': 'Run python scripts/train.py'}
                 }), 503
             
-            # Validate request
-            request_data = request.get_json()
-            
             if not request_data:
+                logger.warning("No data provided in request")
                 return jsonify({
                     'success': False,
                     'error': 'No data provided'
                 }), 400
             
+            # Validate request with Pydantic
             try:
+                logger.info("Validating request with Pydantic schema...")
                 validated_request = PredictionRequest(**request_data)
+                logger.info("✓ Request validation successful")
             except ValidationError as e:
                 logger.warning(f"Validation error: {str(e)}")
+                logger.warning(f"Validation errors details: {json.dumps(e.errors(), indent=2)}")
                 return jsonify({
                     'success': False,
                     'error': 'Invalid request format',
@@ -90,12 +102,23 @@ def create_routes(model_registry, db_manager) -> Blueprint:
                 }), 400
             
             # Map features
+            logger.info("Mapping request features to model format...")
             features = FeatureMapper.map_request_to_features(request_data)
+            logger.info(f"Mapped features: {features}")
+            
+            logger.info("Validating features...")
             FeatureMapper.validate_features(features)
+            logger.info("✓ Features validation successful")
+            
+            logger.info("Converting features to DataFrame...")
             features_df = FeatureMapper.features_to_dataframe(features)
+            logger.info(f"DataFrame shape: {features_df.shape}")
+            logger.info(f"DataFrame columns: {features_df.columns.tolist()}")
             
             # Make predictions
+            logger.info("Making predictions...")
             predictions = predictor.predict(features_df)
+            logger.info(f"✓ Predictions generated: Crop={predictions['crop']['label']}, Fertilizer={predictions['fertilizer']['label']}")
             
             # Build response
             response_data = {
@@ -109,23 +132,28 @@ def create_routes(model_registry, db_manager) -> Blueprint:
                 }
             }
             
+            logger.info(f"Response: {json.dumps(response_data, indent=2)}")
+            
             # Save to database
             try:
+                logger.info("Saving prediction to database...")
                 with db_manager.get_session() as session:
-                    PredictionRepository.create_prediction_log(
+                    log_entry = PredictionRepository.create_prediction_log(
                         session,
                         request_data,
                         response_data,
                         model_registry.get_model_version()
                     )
+                    logger.info(f"✓ Prediction saved to database with ID: {log_entry.id}")
             except Exception as db_error:
-                logger.error(f"Database error: {str(db_error)}")
+                logger.error(f"Database error (non-critical): {str(db_error)}", exc_info=True)
                 # Continue anyway - prediction succeeded
             
+            logger.info("="*60)
             return jsonify(response_data), 200
             
         except ValueError as e:
-            logger.warning(f"Value error: {str(e)}")
+            logger.warning(f"Value error: {str(e)}", exc_info=True)
             return jsonify({
                 'success': False,
                 'error': str(e)
