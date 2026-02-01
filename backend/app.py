@@ -34,7 +34,12 @@ def create_app() -> Flask:
         # Initialize database
         logger.info("Initializing database connection...")
         db = Database(Config.SQLALCHEMY_DATABASE_URI)
+        
+        # Create tables if they don't exist
+        logger.info("Ensuring database tables exist...")
         db.create_tables()
+        logger.info("Database tables verified/created successfully")
+        
         app.db = db
         
         # Initialize model registry

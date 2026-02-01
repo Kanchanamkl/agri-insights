@@ -1,4 +1,3 @@
-
 # MICFRS Backend - Multi-Input Crop and Fertilizer Recommendation System
 
 A Flask-based backend API that provides crop and fertilizer recommendations using machine learning models trained on soil and environmental data.
@@ -60,7 +59,59 @@ DB_USER=root
 DB_PASSWORD=your_password
 ```
 
-### 5. Prepare Dataset
+### 5. Initialize Database
+
+Create database tables:
+
+```bash
+python scripts/init_database.py
+```
+
+**Expected Output:**
+```
+Database Initialization
+============================================================
+Connecting to database: micfrs_db
+Creating database tables...
+Database initialization completed successfully!
+============================================================
+Database: micfrs_db
+Host: localhost:3306
+Tables created:
+  - prediction_logs
+```
+
+**Optional:** Seed sample data for testing:
+
+```bash
+python scripts/seed_sample_data.py
+```
+
+### 6. Verify Database Setup
+
+Verify database connection and check table status:
+
+```bash
+python scripts/verify_database.py
+```
+
+**Expected Output:**
+```
+Database Verification
+============================================================
+Database: micfrs_db
+Host: localhost:3306
+User: root
+
+Tables found: 1
+  - prediction_logs
+
+Prediction Logs Statistics:
+  Total records: 0
+============================================================
+```
+
+### 7. Prepare Dataset
 
 Place your `fertilizer_recommendation_dataset.csv` in the `data/` directory:
 
@@ -99,6 +150,110 @@ python app.py
 ```
 
 The API will be available at `http://localhost:5000`
+
+## Database Operations
+
+### Manual Table Creation
+
+If you need to manually create tables using SQL:
+
+```sql
+CREATE TABLE prediction_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    -- Soil inputs
+    nitrogen FLOAT NOT NULL,
+    phosphorous FLOAT NOT NULL,
+    potassium FLOAT NOT NULL,
+    carbon FLOAT NOT NULL,
+    ph FLOAT NOT NULL,
+    soil_type VARCHAR(50) NOT NULL,
+    moisture FLOAT NOT NULL,
+    
+    -- Environmental inputs
+    rainfall FLOAT NOT NULL,
+    temperature FLOAT NOT NULL,
+    humidity FLOAT NOT NULL,
+    
+    -- Field context
+    region VARCHAR(100),
+    land_size FLOAT,
+    irrigation_type VARCHAR(50),
+    previous_crop VARCHAR(100),
+    
+    -- Predictions
+    predicted_crop VARCHAR(100) NOT NULL,
+    crop_confidence FLOAT NOT NULL,
+    predicted_fertilizer VARCHAR(100) NOT NULL,
+    fertilizer_confidence FLOAT NOT NULL,
+    remark TEXT,
+    
+    -- Metadata
+    model_version VARCHAR(50),
+    raw_request_json JSON,
+    raw_response_json JSON,
+    
+    INDEX idx_created_at (created_at),
+    INDEX idx_crop (predicted_crop),
+    INDEX idx_fertilizer (predicted_fertilizer)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
+
+### View Stored Predictions
+
+Connect to MySQL and query:
+
+```sql
+-- View latest predictions
+SELECT id, predicted_crop, predicted_fertilizer, crop_confidence, fertilizer_confidence, created_at
+FROM prediction_logs
+ORDER BY created_at DESC
+LIMIT 10;
+
+-- Count predictions by crop
+SELECT predicted_crop, COUNT(*) as count
+FROM prediction_logs
+GROUP BY predicted_crop
+ORDER BY count DESC;
+
+-- Count predictions by fertilizer
+SELECT predicted_fertilizer, COUNT(*) as count
+FROM prediction_logs
+GROUP BY predicted_fertilizer
+ORDER BY count DESC;
+
+-- View full prediction details
+SELECT *
+FROM prediction_logs
+WHERE id = 1;
+```
+
+### Clear All Data
+
+To reset the database:
+
+```sql
+-- Delete all records
+DELETE FROM prediction_logs;
+
+-- Reset auto-increment
+ALTER TABLE prediction_logs AUTO_INCREMENT = 1;
+```
+
+### Database Backup
+
+Create a backup:
+
+```bash
+mysqldump -u root -p micfrs_db > backup_micfrs_$(date +%Y%m%d).sql
+```
+
+Restore from backup:
+
+```bash
+mysql -u root -p micfrs_db < backup_micfrs_20240101.sql
+```
 
 ## API Endpoints
 
@@ -279,7 +434,10 @@ backend/
 │   └── metadata.json
 ├── scripts/                  # Training and evaluation scripts
 │   ├── train.py
-│   └── evaluate.py
+│   ├── evaluate.py
+│   ├── init_database.py      # Database initialization script
+│   ├── seed_sample_data.py   # Seed sample data script
+│   └── verify_database.py    # Verify database setup script
 ├── src/                      # Source code
 │   ├── api/
 │   │   ├── routes.py         # API endpoints
@@ -322,6 +480,24 @@ sqlalchemy.exc.OperationalError: (pymysql.err.OperationalError) (2003, "Can't co
 1. Verify MySQL is running
 2. Check credentials in `.env`
 3. Ensure database `micfrs_db` exists
+
+### Table Does Not Exist Error
+
+```
+sqlalchemy.exc.ProgrammingError: (pymysql.err.ProgrammingError) (1146, "Table 'micfrs_db.prediction_logs' doesn't exist")
+```
+
+**Solution:**
+1. Run database initialization: `python scripts/init_database.py`
+2. Or restart the Flask app - tables are created automatically
+
+### No Data Appears in Database
+
+**Verify the `/predict` endpoint is being called successfully:**
+1. Check logs: `logs/app.log`
+2. Verify database connection
+3. Test with curl request
+4. Check for database errors in logs
 
 ### Import Errors
 
