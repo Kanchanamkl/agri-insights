@@ -27,8 +27,16 @@ def create_app() -> Flask:
     app = Flask(__name__)
     app.config.from_object(Config)
     
-    # Enable CORS
-    CORS(app, resources={r"/*": {"origins": "*"}})
+    # Enable CORS with specific configuration for development
+    CORS(app, resources={
+        r"/*": {
+            "origins": ["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"],
+            "methods": ["GET", "POST", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization"],
+            "expose_headers": ["Content-Type"],
+            "supports_credentials": True
+        }
+    })
     
     try:
         # Initialize database
@@ -71,6 +79,7 @@ app = create_app()
 
 if __name__ == '__main__':
     logger.info(f"Starting Flask server on http://localhost:5000")
+    logger.info(f"CORS enabled for frontend at http://localhost:5173")
     app.run(
         host='0.0.0.0',
         port=5000,

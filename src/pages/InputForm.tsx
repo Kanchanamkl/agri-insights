@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,8 @@ import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { generateRecommendation, demoRecommendations } from '@/lib/recommendationEngine';
+import { checkBackendHealth } from '@/lib/api';
+import { useToast } from '@/hooks/use-toast';
 import { REGIONS, PREVIOUS_CROPS, IRRIGATION_TYPES, MOISTURE_LEVELS } from '@/types';
 import { 
   ArrowLeft, 
@@ -146,11 +148,40 @@ function SliderInput({
 export default function InputForm() {
   const { state, dispatch } = useApp();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [backendStatus, setBackendStatus] = useState<'unknown' | 'healthy' | 'unhealthy'>('unknown');
 
   const { formData, currentStep } = state;
   const { soil, environmental, field } = formData;
+
+  useEffect(() => {
+    const checkHealth = async () => {
+      try {
+        const health = await checkBackendHealth();
+        if (health.status === 'healthy') {
+          setBackendStatus('healthy');
+          toast({
+            title: 'Backend Connected',
+            description: `ML models loaded (${health.model_version})`,
+          });
+        } else {
+          setBackendStatus('unhealthy');
+          toast({
+            title: 'Backend Initializing',
+            description: 'Models are loading, please wait...',
+            variant: 'default',
+          });
+        }
+      } catch (error) {
+        setBackendStatus('unhealthy');
+        console.warn('Backend not available, will use fallback mode');
+      }
+    };
+    
+    checkHealth();
+  }, [toast]);
 
   const validateStep = (step: number): boolean => {
     const newErrors: Record<string, string> = {};
@@ -193,14 +224,31 @@ export default function InputForm() {
 
     setIsSubmitting(true);
     
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    const recommendation = generateRecommendation(formData);
-    dispatch({ type: 'ADD_RECOMMENDATION', payload: recommendation });
-    
-    setIsSubmitting(false);
-    navigate(`/recommendations/${recommendation.id}`);
+    try {
+      // Call the ML backend
+      const recommendation = await generateRecommendation(formData);
+      
+      dispatch({ type: 'ADD_RECOMMENDATION', payload: recommendation });
+      
+      toast({
+        title: 'Recommendation Generated',
+        description: `Recommended crop: ${recommendation.crop.name}`,
+      });
+      
+      setIsSubmitting(false);
+      navigate(`/recommendations/${recommendation.id}`);
+      
+    } catch (error) {
+      console.error('Failed to generate recommendation:', error);
+      
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to generate recommendation. Please try again.',
+        variant: 'destructive',
+      });
+      
+      setIsSubmitting(false);
+    }
   };
 
   const handleQuickFill = () => {
@@ -221,6 +269,24 @@ export default function InputForm() {
   return (
     <div className="container py-8 md:py-12">
       <div className="max-w-3xl mx-auto">
+        {/* Backend Status Indicator */}
+        {backendStatus === 'healthy' && (
+          <div className="mb-4 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
+            <p className="text-sm text-green-800 dark:text-green-200 flex items-center gap-2">
+              <span className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
+              ML Backend Connected
+            </p>
+          </div>
+        )}
+        {backendStatus === 'unhealthy' && (
+          <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+            <p className="text-sm text-yellow-800 dark:text-yellow-200 flex items-center gap-2">
+              <span className="h-2 w-2 bg-yellow-500 rounded-full" />
+              Using fallback mode (backend unavailable)
+            </p>
+          </div>
+        )}
+
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="font-display text-3xl md:text-4xl font-bold mb-2">

@@ -24,9 +24,26 @@ export interface FieldData {
 
 // Complete Form Data
 export interface FormData {
-  soil: SoilData;
-  environmental: EnvironmentalData;
-  field: FieldData;
+  soil: {
+    nitrogen: number;
+    phosphorus: number;
+    potassium: number;
+    carbon?: number; // Optional, backend will use default if not provided
+    pH: number;
+    soilType: string;
+    moisture: 'low' | 'medium' | 'high';
+  };
+  environmental: {
+    rainfall: number;
+    temperature: number;
+    humidity: number;
+  };
+  field: {
+    previousCrop: string;
+    irrigationType: 'rainfed' | 'drip' | 'sprinkler' | 'flood';
+    landSize: number;
+    region: string;
+  };
 }
 
 // Feature Importance for explainability
