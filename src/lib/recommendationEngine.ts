@@ -232,7 +232,7 @@ export async function generateRecommendation(
   try {
     console.log('Calling backend with formData:', formData);
     const apiResponse = await getPrediction(formData);
-    console.log('Backend response - Recommendation Engine : ', apiResponse);
+    console.log('Backend response:', apiResponse);
     
     const recommendation = convertApiResponseToRecommendation(formData, apiResponse);
     console.log('Converted recommendation:', recommendation);
@@ -248,44 +248,41 @@ export async function generateRecommendation(
 
 /**
  * Convert API response to Recommendation format
+ * Now ALL data comes from backend!
  */
 export function convertApiResponseToRecommendation(
   formData: FormData,
-  apiResponse: PredictionResponse
+  apiResponse: any // Extended response type
 ): Recommendation {
   const id = `rec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   
   return {
     id,
     timestamp: new Date(apiResponse.meta.timestamp),
-    inputData: formData, // Include the original form data
+    inputData: formData,
     crop: {
       crop: apiResponse.crop.label,
       confidence: Math.round(apiResponse.crop.confidence * 100),
-      expectedYieldMin: 2000, // Default values
-      expectedYieldMax: 3000,
-      yieldUnit: 'kg/acre',
-      marketPriceTrend: 'stable',
-      growingSeasonStart: 'March',
-      growingSeasonEnd: 'July',
-      icon: '🌾',
+      expectedYieldMin: apiResponse.crop.expectedYieldMin,
+      expectedYieldMax: apiResponse.crop.expectedYieldMax,
+      yieldUnit: apiResponse.crop.yieldUnit,
+      marketPriceTrend: apiResponse.crop.marketPriceTrend,
+      growingSeasonStart: apiResponse.crop.growingSeasonStart,
+      growingSeasonEnd: apiResponse.crop.growingSeasonEnd,
+      icon: apiResponse.crop.icon,
     },
     fertilizer: {
-      type: apiResponse.fertilizer.label,
-      components: extractComponents(apiResponse.fertilizer.label),
-      quantityPerAcre: calculateQuantityPerAcre(apiResponse.fertilizer.label, formData.field.landSize),
-      applicationSchedule: generateSchedule(apiResponse.fertilizer.label),
-      estimatedCost: calculateCost(apiResponse.fertilizer.label, formData.field.landSize),
-      costUnit: 'LKR',
-      environmentalImpact: 'low',
+      type: apiResponse.fertilizer.type,
+      components: apiResponse.fertilizer.components,
+      quantityPerAcre: apiResponse.fertilizer.quantityPerAcre,
+      applicationSchedule: apiResponse.fertilizer.applicationSchedule,
+      estimatedCost: apiResponse.fertilizer.estimatedCost,
+      costUnit: apiResponse.fertilizer.costUnit,
+      environmentalImpact: apiResponse.fertilizer.environmentalImpact,
     },
-    featureImportance: generateFeatureImportance(formData),
-    alternativeCrops: apiResponse.crop.top_k.slice(1, 4).map((alt, idx) => ({
-      crop: alt.label,
-      confidence: Math.round(alt.prob * 100),
-      reason: `Good alternative based on soil conditions (${Math.round(alt.prob * 100)}% match)`,
-    })),
-    riskFactors: generateRiskFactors(formData),
+    featureImportance: apiResponse.featureImportance,
+    alternativeCrops: apiResponse.alternativeCrops,
+    riskFactors: apiResponse.riskFactors,
   };
 }
 

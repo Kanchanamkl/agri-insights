@@ -115,9 +115,12 @@ def create_routes(model_registry, db_manager) -> Blueprint:
             logger.info(f"DataFrame shape: {features_df.shape}")
             logger.info(f"DataFrame columns: {features_df.columns.tolist()}")
             
-            # Make predictions
-            logger.info("Making predictions...")
-            predictions = predictor.predict(features_df)
+            # Extract land size for cost calculation
+            land_size = request_data.get('field', {}).get('landSize', 1)
+            
+            # Make predictions with enriched data
+            logger.info(f"Making predictions for {land_size} acre(s)...")
+            predictions = predictor.predict(features_df, land_size=land_size)
             logger.info(f"✓ Predictions generated: Crop={predictions['crop']['label']}, Fertilizer={predictions['fertilizer']['label']}")
             
             # Build response
@@ -126,13 +129,23 @@ def create_routes(model_registry, db_manager) -> Blueprint:
                 'crop': predictions['crop'],
                 'fertilizer': predictions['fertilizer'],
                 'remark': predictions['remark'],
+                'featureImportance': predictions['featureImportance'],
+                'alternativeCrops': [
+                    {
+                        'crop': alt['label'],
+                        'confidence': int(alt['prob'] * 100),
+                        'reason': f"Good alternative based on soil conditions ({int(alt['prob'] * 100)}% match)"
+                    }
+                    for alt in predictions['crop']['top_k'][1:4]
+                ],
+                'riskFactors': predictions['riskFactors'],
                 'meta': {
                     'model_version': model_registry.get_model_version(),
                     'timestamp': get_current_timestamp()
                 }
             }
             
-            logger.info(f"Response: {json.dumps(response_data, indent=2)}")
+            logger.info(f"Response with enriched data ready")
             
             # Save to database
             try:
