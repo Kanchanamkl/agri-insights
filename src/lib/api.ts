@@ -118,10 +118,14 @@ class ApiClient {
       },
     };
 
-    return this.request<PredictionResponse>('/predict', {
+    const response = await this.request<PredictionResponse>('/predict', {
       method: 'POST',
       body: JSON.stringify(requestPayload),
     });
+
+    console.log('Backend response:', response);
+    
+    return response;
   }
 
   /**

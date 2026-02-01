@@ -67,6 +67,8 @@ export default function Recommendations() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { state } = useApp();
+
+  console.log('Recommendations State:', state);
   
   const recommendation = state.recommendations.find(r => r.id === id);
   

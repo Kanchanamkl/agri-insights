@@ -81,7 +81,7 @@ export interface FertilizerRecommendation {
 export interface Recommendation {
   id: string;
   timestamp: Date;
-  inputData: FormData;
+  inputData: FormData; // This is the key field that was missing!
   crop: CropRecommendation;
   fertilizer: FertilizerRecommendation;
   featureImportance: FeatureImportance[];
