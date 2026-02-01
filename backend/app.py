@@ -4,9 +4,9 @@ import sys
 import logging
 
 from config import Config
-from src.utils.logging_config import setup_logging
+from utils.logging_config import setup_logging
 from src.db.database import Database
-from ml.model_registry import ModelRegistry
+from src.ml.model_registry import ModelRegistry
 from src.api.routes import create_routes
 
 # Initialize configuration
@@ -27,16 +27,20 @@ def create_app() -> Flask:
     app = Flask(__name__)
     app.config.from_object(Config)
     
-    # Enable CORS with specific configuration for development
-    CORS(app, resources={
-        r"/*": {
-            "origins": ["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"],
-            "methods": ["GET", "POST", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization"],
-            "expose_headers": ["Content-Type"],
-            "supports_credentials": True
-        }
-    })
+    # Enable CORS - Allow all origins in development
+    CORS(app, 
+         origins="*",
+         methods=["GET", "POST", "OPTIONS"],
+         allow_headers=["Content-Type", "Authorization"],
+         supports_credentials=False)
+    
+    # Add CORS headers to all responses
+    @app.after_request
+    def after_request(response):
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+        return response
     
     try:
         # Initialize database
@@ -60,7 +64,8 @@ def create_app() -> Flask:
         except FileNotFoundError as e:
             logger.error(f"Model files not found: {str(e)}")
             logger.error("Please run 'python scripts/train.py' first to train models")
-            sys.exit(1)
+            # Don't exit - allow health check to work
+            model_registry = None
         
         # Register routes
         api_bp = create_routes(model_registry, db)
@@ -79,7 +84,7 @@ app = create_app()
 
 if __name__ == '__main__':
     logger.info(f"Starting Flask server on http://localhost:5000")
-    logger.info(f"CORS enabled for frontend at http://localhost:5173")
+    logger.info(f"CORS enabled for all origins (development mode)")
     app.run(
         host='0.0.0.0',
         port=5000,

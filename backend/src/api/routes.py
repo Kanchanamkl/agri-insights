@@ -8,10 +8,10 @@ from ..api.schemas import (
     PredictionResponse,
     ErrorResponse
 )
-from ml.feature_mapper import FeatureMapper
-from ml.predictor import Predictor
-from ..db.repository import PredictionRepository
-from ..utils.time_utils import get_current_timestamp
+from src.ml.feature_mapper import FeatureMapper
+from src.ml.predictor import Predictor
+from src.db.repository import PredictionRepository
+from utils.time_utils import get_current_timestamp
 
 logger = logging.getLogger('micfrs.routes')
 
@@ -27,18 +27,23 @@ def create_routes(model_registry, db_manager) -> Blueprint:
         Flask Blueprint
     """
     bp = Blueprint('api', __name__)
-    predictor = Predictor(model_registry)
     
-    @bp.route('/health', methods=['GET'])
+    # Initialize predictor only if models are loaded
+    predictor = Predictor(model_registry) if model_registry else None
+    
+    @bp.route('/health', methods=['GET', 'OPTIONS'])
     def health_check():
         """Health check endpoint"""
+        if request.method == 'OPTIONS':
+            return '', 204
+            
         try:
-            is_ready = model_registry.is_ready()
+            is_ready = model_registry.is_ready() if model_registry else False
             
             return jsonify({
                 'status': 'healthy' if is_ready else 'initializing',
                 'models_loaded': is_ready,
-                'model_version': model_registry.get_model_version(),
+                'model_version': model_registry.get_model_version() if model_registry else 'unknown',
                 'timestamp': get_current_timestamp()
             }), 200 if is_ready else 503
             
@@ -46,24 +51,43 @@ def create_routes(model_registry, db_manager) -> Blueprint:
             logger.error(f"Health check failed: {str(e)}")
             return jsonify({
                 'status': 'unhealthy',
-                'error': str(e)
+                'error': str(e),
+                'models_loaded': False,
+                'timestamp': get_current_timestamp()
             }), 500
     
-    @bp.route('/predict', methods=['POST'])
+    @bp.route('/predict', methods=['POST', 'OPTIONS'])
     def predict():
         """Main prediction endpoint"""
+        if request.method == 'OPTIONS':
+            return '', 204
+            
         try:
+            if not model_registry or not model_registry.is_ready():
+                return jsonify({
+                    'success': False,
+                    'error': 'Models not loaded. Please train models first.',
+                    'details': {'message': 'Run python scripts/train.py'}
+                }), 503
+            
             # Validate request
             request_data = request.get_json()
+            
+            if not request_data:
+                return jsonify({
+                    'success': False,
+                    'error': 'No data provided'
+                }), 400
             
             try:
                 validated_request = PredictionRequest(**request_data)
             except ValidationError as e:
                 logger.warning(f"Validation error: {str(e)}")
-                return jsonify(ErrorResponse(
-                    error="Invalid request format",
-                    details=e.errors()
-                ).dict()), 400
+                return jsonify({
+                    'success': False,
+                    'error': 'Invalid request format',
+                    'details': e.errors()
+                }), 400
             
             # Map features
             features = FeatureMapper.map_request_to_features(request_data)
@@ -102,19 +126,29 @@ def create_routes(model_registry, db_manager) -> Blueprint:
             
         except ValueError as e:
             logger.warning(f"Value error: {str(e)}")
-            return jsonify(ErrorResponse(error=str(e)).dict()), 400
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 400
             
         except Exception as e:
             logger.error(f"Prediction error: {str(e)}", exc_info=True)
-            return jsonify(ErrorResponse(
-                error="Internal server error",
-                details={'message': str(e)}
-            ).dict()), 500
+            return jsonify({
+                'success': False,
+                'error': 'Internal server error',
+                'details': {'message': str(e)}
+            }), 500
     
-    @bp.route('/predict/crop', methods=['POST'])
+    @bp.route('/predict/crop', methods=['POST', 'OPTIONS'])
     def predict_crop_only():
         """Crop-only prediction endpoint"""
+        if request.method == 'OPTIONS':
+            return '', 204
+            
         try:
+            if not model_registry or not model_registry.is_ready():
+                return jsonify({'success': False, 'error': 'Models not loaded'}), 503
+            
             request_data = request.get_json()
             validated_request = PredictionRequest(**request_data)
             
@@ -138,12 +172,18 @@ def create_routes(model_registry, db_manager) -> Blueprint:
             
         except Exception as e:
             logger.error(f"Crop prediction error: {str(e)}")
-            return jsonify(ErrorResponse(error=str(e)).dict()), 500
+            return jsonify({'success': False, 'error': str(e)}), 500
     
-    @bp.route('/predict/fertilizer', methods=['POST'])
+    @bp.route('/predict/fertilizer', methods=['POST', 'OPTIONS'])
     def predict_fertilizer_only():
         """Fertilizer-only prediction endpoint"""
+        if request.method == 'OPTIONS':
+            return '', 204
+            
         try:
+            if not model_registry or not model_registry.is_ready():
+                return jsonify({'success': False, 'error': 'Models not loaded'}), 503
+            
             request_data = request.get_json()
             validated_request = PredictionRequest(**request_data)
             
@@ -173,6 +213,6 @@ def create_routes(model_registry, db_manager) -> Blueprint:
             
         except Exception as e:
             logger.error(f"Fertilizer prediction error: {str(e)}")
-            return jsonify(ErrorResponse(error=str(e)).dict()), 500
+            return jsonify({'success': False, 'error': str(e)}), 500
     
     return bp
