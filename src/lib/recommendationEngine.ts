@@ -242,7 +242,7 @@ export async function generateRecommendation(
     console.error('Failed to get prediction from backend:', error);
     // Fallback to mock data if backend is unavailable
     console.warn('Using fallback mock recommendation');
-    return generateMockRecommendation(formData);
+    // return generateMockRecommendation(formData);
   }
 }
 
