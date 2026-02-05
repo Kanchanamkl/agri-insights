@@ -1,49 +1,36 @@
 import os
-from pathlib import Path
 from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
 
 class Config:
-    """Application configuration"""
-    
     # Flask
-    SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-me')
     FLASK_ENV = os.getenv('FLASK_ENV', 'development')
-    DEBUG = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
+    DEBUG = os.getenv('FLASK_DEBUG', 'True').lower() == 'true'
+    
+    # MySQL
+    MYSQL_HOST = os.getenv('MYSQL_HOST', 'localhost')
+    MYSQL_PORT = int(os.getenv('MYSQL_PORT', 3306))
+    MYSQL_USER = os.getenv('MYSQL_USER', 'root')
+    MYSQL_PASSWORD = os.getenv('MYSQL_PASSWORD', '')
+    MYSQL_DB = os.getenv('MYSQL_DB', 'agri_insights')
+    
+    @property
+    def SQLALCHEMY_DATABASE_URI(self):
+        return f"mysql+pymysql://{self.MYSQL_USER}:{self.MYSQL_PASSWORD}@{self.MYSQL_HOST}:{self.MYSQL_PORT}/{self.MYSQL_DB}"
     
     # Paths
-    BASE_DIR = Path(__file__).parent
-    MODEL_DIR = BASE_DIR / os.getenv('MODEL_DIR', 'models')
-    DATASET_PATH = BASE_DIR / os.getenv('DATASET_PATH', 'data/fertilizer_recommendation_dataset.csv')
-    LOG_DIR = BASE_DIR / 'logs'
-    REPORTS_DIR = BASE_DIR / 'reports'
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    DATA_DIR = os.path.join(BASE_DIR, 'data')
+    MODELS_DIR = os.path.join(BASE_DIR, 'models')
     
-    # Database
-    DB_HOST = os.getenv('DB_HOST', 'localhost')
-    DB_PORT = int(os.getenv('DB_PORT', 3306))
-    DB_NAME = os.getenv('DB_NAME', 'micfrs_db')
-    DB_USER = os.getenv('DB_USER', 'root')
-    DB_PASSWORD = os.getenv('DB_PASSWORD', '')
+    # Model files
+    CROP_MODEL_PATH = os.path.join(MODELS_DIR, 'crop_model.joblib')
+    FERTILIZER_MODEL_PATH = os.path.join(MODELS_DIR, 'fertilizer_model.joblib')
+    REMARK_MAP_PATH = os.path.join(MODELS_DIR, 'fertilizer_remark_map.joblib')
+    METADATA_PATH = os.path.join(MODELS_DIR, 'metadata.json')
     
-    SQLALCHEMY_DATABASE_URI = (
-        f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-    )
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
-    
-    # Logging
-    LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
-    LOG_FILE = BASE_DIR / os.getenv('LOG_FILE', 'logs/app.log')
-    
-    # Model settings
-    RANDOM_STATE = 42
-    TEST_SIZE = 0.2
-    VAL_SIZE = 0.5  # From remaining 20%: 10% val, 10% test
-    
-    @classmethod
-    def ensure_directories(cls):
-        """Create necessary directories"""
-        cls.MODEL_DIR.mkdir(exist_ok=True)
-        cls.LOG_DIR.mkdir(exist_ok=True)
-        cls.REPORTS_DIR.mkdir(exist_ok=True)
+    # Dataset
+    DATASET_PATH = os.path.join(DATA_DIR, 'fertilizer_recommendation_dataset.csv')
+
+config = Config()

@@ -1,92 +1,199 @@
-from flask import Flask
+from flask import Flask, request, jsonify
 from flask_cors import CORS
-import sys
-import logging
+from pydantic import ValidationError
+import json
+from ml.predictor import predictor
+from ml.feature_mapper import PredictionRequest, FeatureMapper
+from db.database import db
+from db.models import PredictionLog
+from utils.helpers import get_logger, get_timestamp
+from config import config
 
-from config import Config
-from utils.logging_config import setup_logging
-from src.db.database import Database
-from src.ml.model_registry import ModelRegistry
-from src.api.routes import create_routes
+logger = get_logger(__name__)
 
-# Initialize configuration
-Config.ensure_directories()
+# Create Flask app
+app = Flask(__name__)
+CORS(app)
 
-# Setup logging
-logger = setup_logging(
-    log_file=Config.LOG_FILE,
-    log_level=Config.LOG_LEVEL
-)
+# Global state
+db_available = False
 
-def create_app() -> Flask:
-    """Create and configure Flask application"""
+@app.before_request
+def initialize():
+    """Initialize models and database on first request"""
+    global db_available
     
-    logger.info("Starting MICFRS Backend Application")
+    if not predictor.models_loaded:
+        predictor.load_models()
     
-    # Create Flask app
-    app = Flask(__name__)
-    app.config.from_object(Config)
-    
-    # Enable CORS - Allow all origins in development
-    CORS(app, 
-         origins="*",
-         methods=["GET", "POST", "OPTIONS"],
-         allow_headers=["Content-Type", "Authorization"],
-         supports_credentials=False)
-    
-    # Add CORS headers to all responses
-    @app.after_request
-    def after_request(response):
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
-        return response
-    
+    if not db_available:
+        db_available = db.connect()
+
+@app.route('/health', methods=['GET'])
+def health():
+    """Health check endpoint"""
+    return jsonify({
+        'status': 'healthy' if predictor.models_loaded else 'initializing',
+        'models_loaded': predictor.models_loaded,
+        'model_version': predictor.metadata['model_version'] if predictor.models_loaded else None,
+        'database_available': db_available,
+        'timestamp': get_timestamp(),
+        'message': 'Run `python ml/train.py` to train models' if not predictor.models_loaded else 'Ready'
+    })
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    """Combined crop and fertilizer prediction"""
     try:
-        # Initialize database
-        logger.info("Initializing database connection...")
-        db = Database(Config.SQLALCHEMY_DATABASE_URI)
+        # Validate request
+        data = request.get_json()
+        pred_request = PredictionRequest(**data)
         
-        # Create tables if they don't exist
-        logger.info("Ensuring database tables exist...")
-        db.create_tables()
-        logger.info("Database tables verified/created successfully")
+        # Generate prediction
+        response = predictor.predict(pred_request)
         
-        app.db = db
+        # Log to database (non-fatal if fails)
+        if db_available:
+            try:
+                log_prediction(data, response, pred_request)
+            except Exception as e:
+                logger.error(f"Failed to log prediction: {e}")
         
-        # Initialize model registry
-        logger.info("Loading ML models...")
-        model_registry = ModelRegistry(Config.MODEL_DIR)
+        return jsonify(response), 200
         
-        try:
-            model_registry.load_models()
-            logger.info(f"Models loaded successfully. Version: {model_registry.get_model_version()}")
-        except FileNotFoundError as e:
-            logger.error(f"Model files not found: {str(e)}")
-            logger.error("Please run 'python scripts/train.py' first to train models")
-            # Don't exit - allow health check to work
-            model_registry = None
+    except ValidationError as e:
+        logger.warning(f"Validation error: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Invalid request format',
+            'details': e.errors()
+        }), 400
         
-        # Register routes
-        api_bp = create_routes(model_registry, db)
-        app.register_blueprint(api_bp)
-        
-        logger.info("Application initialized successfully")
+    except ValueError as e:
+        logger.warning(f"Value error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 400
         
     except Exception as e:
-        logger.error(f"Failed to initialize application: {str(e)}", exc_info=True)
-        sys.exit(1)
-    
-    return app
+        logger.error(f"Prediction error: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error',
+            'message': str(e)
+        }), 500
 
-# Create app instance
-app = create_app()
+@app.route('/predict/crop', methods=['POST'])
+def predict_crop_only():
+    """Crop prediction only"""
+    try:
+        data = request.get_json()
+        pred_request = PredictionRequest(**data)
+        
+        features_df = FeatureMapper.extract_features(pred_request)
+        crop_label, crop_conf, crop_top_k = predictor.predict_crop(features_df)
+        crop_meta = predictor.get_crop_metadata(crop_label)
+        
+        response = {
+            'success': True,
+            'crop': {
+                'label': crop_label,
+                'confidence': round(crop_conf, 2),
+                **crop_meta,
+                'top_k': crop_top_k
+            },
+            'meta': {
+                'model_version': predictor.metadata['model_version'],
+                'timestamp': get_timestamp()
+            }
+        }
+        
+        return jsonify(response), 200
+        
+    except Exception as e:
+        logger.error(f"Crop prediction error: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/predict/fertilizer', methods=['POST'])
+def predict_fertilizer_only():
+    """Fertilizer prediction only"""
+    try:
+        data = request.get_json()
+        pred_request = PredictionRequest(**data)
+        
+        features_df = FeatureMapper.extract_features(pred_request)
+        fert_label, fert_conf, fert_top_k = predictor.predict_fertilizer(features_df)
+        fert_meta = predictor.get_fertilizer_metadata(fert_label, pred_request.field.landSize)
+        
+        remark = predictor.remark_map.get(fert_label, "")
+        
+        response = {
+            'success': True,
+            'fertilizer': {
+                'label': fert_label,
+                'confidence': round(fert_conf, 2),
+                'type': fert_label,
+                **fert_meta,
+                'top_k': fert_top_k
+            },
+            'remark': remark,
+            'meta': {
+                'model_version': predictor.metadata['model_version'],
+                'timestamp': get_timestamp()
+            }
+        }
+        
+        return jsonify(response), 200
+        
+    except Exception as e:
+        logger.error(f"Fertilizer prediction error: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+def log_prediction(request_data: dict, response_data: dict, pred_request: PredictionRequest):
+    """Log prediction to database"""
+    session = db.get_session()
+    
+    try:
+        log = PredictionLog(
+            model_version=response_data['meta']['model_version'],
+            request_json=json.dumps(request_data),
+            response_json=json.dumps(response_data),
+            crop_label=response_data['crop']['label'],
+            crop_confidence=response_data['crop']['confidence'],
+            fertilizer_label=response_data['fertilizer']['label'],
+            fertilizer_confidence=response_data['fertilizer']['confidence'],
+            land_size=pred_request.field.landSize,
+            region=pred_request.field.region,
+            irrigation_type=pred_request.field.irrigationType,
+            previous_crop=pred_request.field.previousCrop
+        )
+        
+        session.add(log)
+        session.commit()
+        logger.info(f"Prediction logged: ID={log.id}")
+        
+    except Exception as e:
+        session.rollback()
+        raise e
+    finally:
+        session.close()
+
+@app.errorhandler(404)
+def not_found(e):
+    return jsonify({'success': False, 'error': 'Endpoint not found'}), 404
+
+@app.errorhandler(500)
+def internal_error(e):
+    logger.error(f"Internal server error: {e}", exc_info=True)
+    return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
 if __name__ == '__main__':
-    logger.info(f"Starting Flask server on http://localhost:5000")
-    logger.info(f"CORS enabled for all origins (development mode)")
+    logger.info("Starting Flask application...")
+    logger.info(f"Debug mode: {config.DEBUG}")
+    
     app.run(
         host='0.0.0.0',
         port=5000,
-        debug=Config.DEBUG
+        debug=config.DEBUG
     )
