@@ -112,17 +112,17 @@ class ModelTrainer:
         param_grids = {
             'LogisticRegression': {
                 'classifier__C': [0.1, 1, 10],
-                'classifier__solver': ['lbfgs', 'saga']
+                'classifier__solver': ['lbfgs']  # Reduced from ['lbfgs', 'saga']
             },
             'RandomForest': {
-                'classifier__n_estimators': [100, 200],
-                'classifier__max_depth': [10, 20, None],
-                'classifier__min_samples_split': [2, 5]
+                'classifier__n_estimators': [100],  # Reduced from [100, 200]
+                'classifier__max_depth': [10, 20],  # Reduced from [10, 20, None]
+                'classifier__min_samples_split': [2]  # Reduced from [2, 5]
             },
             'GradientBoosting': {
-                'classifier__n_estimators': [100, 200],
-                'classifier__learning_rate': [0.05, 0.1],
-                'classifier__max_depth': [3, 5]
+                'classifier__n_estimators': [100],  # Reduced from [100, 200]
+                'classifier__learning_rate': [0.1],  # Reduced from [0.05, 0.1]
+                'classifier__max_depth': [3]  # Reduced from [3, 5]
             }
         }
         
@@ -140,7 +140,7 @@ class ModelTrainer:
             search = RandomizedSearchCV(
                 pipeline,
                 param_grids[name],
-                n_iter=10,
+                n_iter=3,  # Changed from 10 to 3
                 cv=3,
                 scoring='f1_macro',
                 random_state=42,

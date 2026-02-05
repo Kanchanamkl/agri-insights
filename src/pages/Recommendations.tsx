@@ -251,7 +251,6 @@ export default function Recommendations() {
 
               {/* Cost */}
               <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
-                <DollarSign className="h-5 w-5 text-primary" />
                 <div>
                   <p className="text-xs text-muted-foreground">Estimated Cost</p>
                   <p className="font-semibold">
