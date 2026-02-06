@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { generateRecommendation, demoRecommendations } from '@/lib/recommendationEngine';
+import { fetchRecommendation} from '@/lib/recommendationEngine';
 import { checkBackendHealth } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { REGIONS, PREVIOUS_CROPS, IRRIGATION_TYPES, MOISTURE_LEVELS, SOIL_TYPES } from '@/types';
@@ -222,18 +222,20 @@ export default function InputForm() {
 
   const handleSubmit = async () => {
     if (!validateStep(3)) return;
-
+  
     setIsSubmitting(true);
+    dispatch({ type: 'SET_LOADING', payload: true });
     
     try {
       // Call the ML backend
-      const recommendation = await generateRecommendation(formData);
+      const recommendation = await fetchRecommendation(formData);
       
       dispatch({ type: 'ADD_RECOMMENDATION', payload: recommendation });
+      dispatch({ type: 'SET_LOADING', payload: false });
       
       toast({
         title: 'Recommendation Generated',
-        description: `Recommended crop: ${recommendation.crop.name}`,
+        description: `Recommended crop: ${recommendation.crop.crop} with ${recommendation.crop.confidence}% confidence`,
       });
       
       setIsSubmitting(false);
@@ -242,16 +244,19 @@ export default function InputForm() {
     } catch (error) {
       console.error('Failed to generate recommendation:', error);
       
+      dispatch({ type: 'SET_LOADING', payload: false });
+      
       toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to generate recommendation. Please try again.',
+        title: 'Backend Error',
+        description: error instanceof Error 
+          ? error.message 
+          : 'Failed to connect to ML backend. Please check if the backend is running.',
         variant: 'destructive',
       });
       
       setIsSubmitting(false);
     }
   };
-
   const handleQuickFill = () => {
     dispatch({ type: 'QUICK_FILL' });
   };
@@ -260,12 +265,6 @@ export default function InputForm() {
     dispatch({ type: 'RESET_FORM' });
   };
 
-  const handleDemoSelect = (index: number) => {
-    const demo = demoRecommendations[index];
-    dispatch({ type: 'SET_SOIL_DATA', payload: demo.data.soil });
-    dispatch({ type: 'SET_ENVIRONMENTAL_DATA', payload: demo.data.environmental });
-    dispatch({ type: 'SET_FIELD_DATA', payload: demo.data.field });
-  };
 
   return (
     <div className="container py-8 md:py-12">
@@ -308,7 +307,7 @@ export default function InputForm() {
             <RotateCcw className="h-4 w-4 mr-2" />
             Reset
           </Button>
-          <Select onValueChange={(v) => handleDemoSelect(Number(v))}>
+          {/* <Select onValueChange={(v) => handleDemoSelect(Number(v))}>
             <SelectTrigger className="w-[200px] h-9">
               <SelectValue placeholder="Load demo scenario..." />
             </SelectTrigger>
@@ -319,7 +318,7 @@ export default function InputForm() {
                 </SelectItem>
               ))}
             </SelectContent>
-          </Select>
+          </Select> */}
         </div>
 
         {/* Progress Indicator */}

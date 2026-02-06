@@ -57,10 +57,13 @@ class ModelTrainer:
         y_fertilizer = self.df['Fertilizer'].copy()
         
         # Build remark map: fertilizer -> most common remark
+        logger.info("Building fertilizer-to-remark mapping...")
         self.remark_map = {}
         for fert in y_fertilizer.unique():
             remarks = self.df[self.df['Fertilizer'] == fert]['Remark']
             self.remark_map[fert] = remarks.mode()[0] if len(remarks) > 0 else ""
+        
+        logger.info(f"Created remark map for {len(self.remark_map)} fertilizer types")
         
         return X, y_crop, y_fertilizer, feature_cols
     
@@ -112,17 +115,17 @@ class ModelTrainer:
         param_grids = {
             'LogisticRegression': {
                 'classifier__C': [0.1, 1, 10],
-                'classifier__solver': ['lbfgs']  # Reduced from ['lbfgs', 'saga']
+                'classifier__solver': ['lbfgs']
             },
             'RandomForest': {
-                'classifier__n_estimators': [100],  # Reduced from [100, 200]
-                'classifier__max_depth': [10, 20],  # Reduced from [10, 20, None]
-                'classifier__min_samples_split': [2]  # Reduced from [2, 5]
+                'classifier__n_estimators': [100],
+                'classifier__max_depth': [10, 20],
+                'classifier__min_samples_split': [2]
             },
             'GradientBoosting': {
-                'classifier__n_estimators': [100],  # Reduced from [100, 200]
-                'classifier__learning_rate': [0.1],  # Reduced from [0.05, 0.1]
-                'classifier__max_depth': [3]  # Reduced from [3, 5]
+                'classifier__n_estimators': [100],
+                'classifier__learning_rate': [0.1],
+                'classifier__max_depth': [3]
             }
         }
         
@@ -140,7 +143,7 @@ class ModelTrainer:
             search = RandomizedSearchCV(
                 pipeline,
                 param_grids[name],
-                n_iter=3,  # Changed from 10 to 3
+                n_iter=3,
                 cv=3,
                 scoring='f1_macro',
                 random_state=42,
@@ -178,7 +181,11 @@ class ModelTrainer:
             'test_f1_weighted': float(f1_weighted),
             'classification_report': classification_report(y_test, y_pred),
             'confusion_matrix': confusion_matrix(y_test, y_pred).tolist(),
-            'classes': sorted(y.unique().tolist())
+            'classes': sorted(y.unique().tolist()),
+            'num_classes': len(y.unique()),
+            'train_samples': len(X_train),
+            'val_samples': len(X_val),
+            'test_samples': len(X_test)
         }
         
         return best_model, report
@@ -203,6 +210,7 @@ class ModelTrainer:
             'crop_classes': sorted(y_crop.unique().tolist()),
             'fertilizer_classes': sorted(y_fertilizer.unique().tolist()),
             'soil_types': sorted(self.df['Soil'].unique().tolist()),
+            'remark_map_size': len(self.remark_map),
             'normalization_maps': {
                 'soil_type_mapping': {
                     'loamy': 'Loamy Soil',
@@ -227,15 +235,95 @@ class ModelTrainer:
         """Save trained models and metadata"""
         os.makedirs(config.MODELS_DIR, exist_ok=True)
         
-        logger.info("Saving models...")
-        joblib.dump(self.crop_model, config.CROP_MODEL_PATH)
-        joblib.dump(self.fertilizer_model, config.FERTILIZER_MODEL_PATH)
-        joblib.dump(self.remark_map, config.REMARK_MAP_PATH)
+        logger.info("Saving models and artifacts...")
         
+        # Save ML models
+        joblib.dump(self.crop_model, config.CROP_MODEL_PATH)
+        logger.info(f"  ✓ Crop model saved to {config.CROP_MODEL_PATH}")
+        
+        joblib.dump(self.fertilizer_model, config.FERTILIZER_MODEL_PATH)
+        logger.info(f"  ✓ Fertilizer model saved to {config.FERTILIZER_MODEL_PATH}")
+        
+        # Save remark map
+        joblib.dump(self.remark_map, config.REMARK_MAP_PATH)
+        logger.info(f"  ✓ Remark map saved to {config.REMARK_MAP_PATH}")
+        
+        # Save metadata
         with open(config.METADATA_PATH, 'w') as f:
             json.dump(self.metadata, f, indent=2)
+        logger.info(f"  ✓ Metadata saved to {config.METADATA_PATH}")
         
-        logger.info(f"Models saved to {config.MODELS_DIR}")
+        logger.info(f"\nAll artifacts saved to {config.MODELS_DIR}")
+
+
+def print_training_summary(training_report):
+    """Print a detailed training summary for both models"""
+    
+    print("\n" + "="*80)
+    print(" "*25 + "TRAINING SUMMARY")
+    print("="*80)
+    
+    # Crop Model Summary
+    crop_report = training_report['crop']
+    print("\n" + "─"*80)
+    print("  CROP RECOMMENDATION MODEL")
+    print("─"*80)
+    print(f"  Model Algorithm:        {crop_report['best_model']}")
+    print(f"  Number of Classes:      {crop_report['num_classes']}")
+    print(f"  Training Samples:       {crop_report['train_samples']}")
+    print(f"  Validation Samples:     {crop_report['val_samples']}")
+    print(f"  Test Samples:           {crop_report['test_samples']}")
+    print()
+    print("  Performance Metrics:")
+    print(f"    • Cross-Validation F1 (Macro):  {crop_report['cv_f1_macro']:.4f}")
+    print(f"    • Test Accuracy:                {crop_report['test_accuracy']:.4f} ({crop_report['test_accuracy']*100:.2f}%)")
+    print(f"    • Test F1-Score (Macro):        {crop_report['test_f1_macro']:.4f}")
+    print(f"    • Test F1-Score (Weighted):     {crop_report['test_f1_weighted']:.4f}")
+    print()
+    print(f"  Crop Classes ({len(crop_report['classes'])}):")
+    classes_str = ", ".join(crop_report['classes'][:10])
+    if len(crop_report['classes']) > 10:
+        classes_str += f", ... (+{len(crop_report['classes']) - 10} more)"
+    print(f"    {classes_str}")
+    
+    # Fertilizer Model Summary
+    fertilizer_report = training_report['fertilizer']
+    print("\n" + "─"*80)
+    print("  FERTILIZER RECOMMENDATION MODEL")
+    print("─"*80)
+    print(f"  Model Algorithm:        {fertilizer_report['best_model']}")
+    print(f"  Number of Classes:      {fertilizer_report['num_classes']}")
+    print(f"  Training Samples:       {fertilizer_report['train_samples']}")
+    print(f"  Validation Samples:     {fertilizer_report['val_samples']}")
+    print(f"  Test Samples:           {fertilizer_report['test_samples']}")
+    print()
+    print("  Performance Metrics:")
+    print(f"    • Cross-Validation F1 (Macro):  {fertilizer_report['cv_f1_macro']:.4f}")
+    print(f"    • Test Accuracy:                {fertilizer_report['test_accuracy']:.4f} ({fertilizer_report['test_accuracy']*100:.2f}%)")
+    print(f"    • Test F1-Score (Macro):        {fertilizer_report['test_f1_macro']:.4f}")
+    print(f"    • Test F1-Score (Weighted):     {fertilizer_report['test_f1_weighted']:.4f}")
+    print()
+    print(f"  Fertilizer Classes ({len(fertilizer_report['classes'])}):")
+    fert_classes_str = ", ".join(fertilizer_report['classes'][:10])
+    if len(fertilizer_report['classes']) > 10:
+        fert_classes_str += f", ... (+{len(fertilizer_report['classes']) - 10} more)"
+    print(f"    {fert_classes_str}")
+    
+    # Metadata
+    metadata = training_report['metadata']
+    print("\n" + "─"*80)
+    print("  ADDITIONAL INFO")
+    print("─"*80)
+    print(f"  Model Version:          {metadata['model_version']}")
+    print(f"  Sklearn Version:        {metadata['sklearn_version']}")
+    print(f"  Training Date:          {metadata['training_date']}")
+    print(f"  Remark Map Size:        {metadata['remark_map_size']} fertilizer types")
+    print(f"  Soil Types:             {len(metadata['soil_types'])} ({', '.join(metadata['soil_types'])})")
+    
+    print("\n" + "="*80)
+    print(" "*25 + "TRAINING COMPLETED")
+    print("="*80 + "\n")
+
 
 def main():
     """Main training script"""
@@ -256,6 +344,9 @@ def main():
     logger.info("="*60)
     logger.info("Training completed successfully!")
     logger.info("="*60)
+    
+    # Print detailed summary
+    print_training_summary(training_report)
 
 if __name__ == '__main__':
     main()

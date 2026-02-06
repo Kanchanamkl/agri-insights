@@ -74,7 +74,7 @@ export interface FertilizerRecommendation {
   applicationSchedule: { week: number; action: string }[];
   estimatedCost: number;
   costUnit: string;
-  environmentalImpact: 'low' | 'medium' | 'high';
+  environmentalImpact: 'low' | 'medium' |'moderate'| 'high';
 }
 
 // Complete Recommendation

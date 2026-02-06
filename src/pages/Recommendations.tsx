@@ -101,6 +101,29 @@ export default function Recommendations() {
     }
   };
 
+  const handleDownload = () => {
+    // Create a downloadable report
+    const reportData = {
+      generatedAt: recommendation.timestamp.toLocaleString(),
+      region: inputData.field.region,
+      cropRecommendation: crop,
+      fertilizerPlan: fertilizer,
+      featureImportance,
+      alternativeCrops,
+      riskFactors,
+      inputData
+    };
+    
+    const dataStr = JSON.stringify(reportData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `MICFRS_Recommendation_${crop.crop}_${Date.now()}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="container py-8 md:py-12">
       <div className="max-w-4xl mx-auto">
@@ -117,13 +140,16 @@ export default function Recommendations() {
             <p className="text-muted-foreground mt-1">
               Based on your field conditions in {inputData.field.region}
             </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Generated: {recommendation.timestamp.toLocaleString()}
+            </p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={handleShare}>
               <Share2 className="h-4 w-4 mr-2" />
               Share
             </Button>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={handleDownload}>
               <Download className="h-4 w-4 mr-2" />
               Export
             </Button>
@@ -142,7 +168,7 @@ export default function Recommendations() {
                     {crop.icon}
                   </div>
                   <div>
-                    <CardTitle className="text-xl">{crop.crop}</CardTitle>
+                    <CardTitle className="text-xl capitalize">{crop.crop}</CardTitle>
                     <CardDescription>Recommended Crop</CardDescription>
                   </div>
                 </div>
@@ -153,7 +179,7 @@ export default function Recommendations() {
               {/* Confidence Score */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-muted-foreground">Suitability Score</span>
+                  <span className="text-sm text-muted-foreground">Model Confidence</span>
                   <span className="font-bold text-lg text-success">{crop.confidence}%</span>
                 </div>
                 <div className="h-3 rounded-full bg-muted overflow-hidden">
@@ -162,6 +188,9 @@ export default function Recommendations() {
                     style={{ width: `${crop.confidence}%` }}
                   />
                 </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Based on ML model prediction and field conditions
+                </p>
               </div>
 
               {/* Details Grid */}
@@ -203,7 +232,8 @@ export default function Recommendations() {
                   <p className="text-xs text-muted-foreground">Growing Season</p>
                   <p className="font-medium">
                     {crop.growingSeasonStart}
-                    {crop.growingSeasonEnd && ` to ${crop.growingSeasonEnd}`}
+                    {crop.growingSeasonEnd && crop.growingSeasonEnd !== crop.growingSeasonStart && 
+                      ` to ${crop.growingSeasonEnd}`}
                   </p>
                 </div>
               </div>
@@ -228,7 +258,7 @@ export default function Recommendations() {
                   variant={fertilizer.environmentalImpact === 'low' ? 'default' : 'secondary'}
                   className={cn(
                     fertilizer.environmentalImpact === 'low' && "bg-success text-success-foreground",
-                    fertilizer.environmentalImpact === 'medium' && "bg-warning text-warning-foreground",
+                    fertilizer.environmentalImpact === 'moderate' && "bg-warning text-warning-foreground",
                     fertilizer.environmentalImpact === 'high' && "bg-destructive text-destructive-foreground"
                   )}
                 >
@@ -241,6 +271,15 @@ export default function Recommendations() {
               <div className="p-3 rounded-lg bg-muted/50">
                 <p className="text-xs text-muted-foreground mb-1">Recommended Mix</p>
                 <p className="font-semibold text-sm">{fertilizer.type}</p>
+                {fertilizer.components && fertilizer.components.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {fertilizer.components.map((component, i) => (
+                      <Badge key={i} variant="outline" className="text-xs">
+                        {component}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Quantity */}
@@ -251,10 +290,14 @@ export default function Recommendations() {
 
               {/* Cost */}
               <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
+                {/* <DollarSign className="h-5 w-5 text-primary shrink-0" /> */}
                 <div>
                   <p className="text-xs text-muted-foreground">Estimated Cost</p>
                   <p className="font-semibold">
                     {fertilizer.estimatedCost.toLocaleString()} {fertilizer.costUnit}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    For {inputData.field.landSize} acre{inputData.field.landSize > 1 ? 's' : ''}
                   </p>
                 </div>
               </div>
@@ -267,10 +310,12 @@ export default function Recommendations() {
                 </p>
                 <div className="space-y-2">
                   {fertilizer.applicationSchedule.map((item, i) => (
-                    <div key={i} className="flex items-center gap-2 text-sm">
-                      <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
-                      <span className="text-muted-foreground">Week {item.week}:</span>
-                      <span>{item.action}</span>
+                    <div key={i} className="flex items-start gap-2 text-sm p-2 rounded bg-muted/30">
+                      <CheckCircle2 className="h-4 w-4 text-success shrink-0 mt-0.5" />
+                      <div>
+                        <span className="text-muted-foreground font-medium">Week {item.week}:</span>
+                        <p className="text-foreground">{item.action}</p>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -291,44 +336,52 @@ export default function Recommendations() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {featureImportance.map((item, i) => (
-              <FeatureImportanceBar
-                key={i}
-                feature={item.feature}
-                impact={item.impact}
-                explanation={item.explanation}
-              />
-            ))}
+            {featureImportance && featureImportance.length > 0 ? (
+              featureImportance.map((item, i) => (
+                <FeatureImportanceBar
+                  key={i}
+                  feature={item.feature}
+                  impact={item.impact}
+                  explanation={item.explanation}
+                />
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No feature importance data available.
+              </p>
+            )}
           </CardContent>
         </Card>
 
         {/* Expandable Sections */}
         <Accordion type="single" collapsible className="space-y-4">
           {/* Alternative Crops */}
-          <AccordionItem value="alternatives" className="border rounded-lg px-4">
-            <AccordionTrigger className="hover:no-underline">
-              <div className="flex items-center gap-2">
-                <Leaf className="h-5 w-5 text-primary" />
-                <span>Alternative Crops ({alternativeCrops.length})</span>
-              </div>
-            </AccordionTrigger>
-            <AccordionContent>
-              <div className="space-y-3 pb-4">
-                {alternativeCrops.map((alt, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <div>
-                      <p className="font-medium">{alt.crop}</p>
-                      <p className="text-xs text-muted-foreground">{alt.reason}</p>
+          {alternativeCrops && alternativeCrops.length > 0 && (
+            <AccordionItem value="alternatives" className="border rounded-lg px-4">
+              <AccordionTrigger className="hover:no-underline">
+                <div className="flex items-center gap-2">
+                  <Leaf className="h-5 w-5 text-primary" />
+                  <span>Alternative Crops ({alternativeCrops.length})</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-3 pb-4">
+                  {alternativeCrops.map((alt, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                      <div className="flex-1">
+                        <p className="font-medium capitalize">{alt.crop}</p>
+                        <p className="text-xs text-muted-foreground">{alt.reason}</p>
+                      </div>
+                      <Badge variant="outline">{alt.confidence}% suitable</Badge>
                     </div>
-                    <Badge variant="outline">{alt.confidence}% suitable</Badge>
-                  </div>
-                ))}
-              </div>
-            </AccordionContent>
-          </AccordionItem>
+                  ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          )}
 
           {/* Risk Factors */}
-          {riskFactors.length > 0 && (
+          {riskFactors && riskFactors.length > 0 && (
             <AccordionItem value="risks" className="border rounded-lg px-4">
               <AccordionTrigger className="hover:no-underline">
                 <div className="flex items-center gap-2">
@@ -364,10 +417,12 @@ export default function Recommendations() {
                 <div className="space-y-2">
                   <p className="font-medium text-sm">Soil Data</p>
                   <div className="text-sm text-muted-foreground space-y-1">
-                    <p>N: {inputData.soil.nitrogen} ppm</p>
-                    <p>P: {inputData.soil.phosphorus} ppm</p>
-                    <p>K: {inputData.soil.potassium} ppm</p>
+                    <p>Nitrogen: {inputData.soil.nitrogen} ppm</p>
+                    <p>Phosphorus: {inputData.soil.phosphorus} ppm</p>
+                    <p>Potassium: {inputData.soil.potassium} ppm</p>
+                    {inputData.soil.carbon && <p>Carbon: {inputData.soil.carbon}%</p>}
                     <p>pH: {inputData.soil.pH}</p>
+                    <p>Type: {inputData.soil.soilType}</p>
                     <p>Moisture: {inputData.soil.moisture}</p>
                   </div>
                 </div>
@@ -384,7 +439,7 @@ export default function Recommendations() {
                   <div className="text-sm text-muted-foreground space-y-1">
                     <p>Previous: {inputData.field.previousCrop}</p>
                     <p>Irrigation: {inputData.field.irrigationType}</p>
-                    <p>Size: {inputData.field.landSize} acres</p>
+                    <p>Size: {inputData.field.landSize} acre{inputData.field.landSize > 1 ? 's' : ''}</p>
                     <p>Region: {inputData.field.region}</p>
                   </div>
                 </div>
