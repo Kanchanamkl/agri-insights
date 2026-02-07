@@ -183,7 +183,7 @@ export default function Recommendations() {
                   </div>
                   <div>
                     {/* UPDATED: Use crop.label */}
-                    <CardTitle className="text-xl capitalize">{crop.label}</CardTitle>
+                    <CardTitle className="text-xl capitalize">{crop.crop}</CardTitle>
                     <CardDescription>Recommended Crop</CardDescription>
                   </div>
                 </div>
