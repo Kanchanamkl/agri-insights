@@ -72,6 +72,7 @@ export interface FertilizerRecommendation {
   components: string[];
   quantityPerAcre: string;
   applicationSchedule: { week: number; action: string }[];
+  confidence: number; // 0-100
   estimatedCost: number;
   costUnit: string;
   environmentalImpact: 'low' | 'medium' |'moderate'| 'high';

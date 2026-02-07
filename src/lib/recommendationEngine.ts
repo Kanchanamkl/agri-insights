@@ -60,6 +60,7 @@ export function convertApiResponseToRecommendation(
       applicationSchedule: apiResponse.fertilizer.applicationSchedule,
       estimatedCost: apiResponse.fertilizer.estimatedCost,
       costUnit: apiResponse.fertilizer.costUnit,
+      confidence: Math.round(apiResponse.fertilizer.confidence * 100),
       environmentalImpact: apiResponse.fertilizer.environmentalImpact,
     },
     featureImportance: apiResponse.featureImportance,

@@ -84,6 +84,8 @@ export default function Recommendations() {
 
   const { crop, fertilizer, featureImportance, alternativeCrops, riskFactors, inputData, warnings } = recommendation;
 
+  console.log('Recommendation Object:', recommendation);
+
   // UPDATED: Check for metadata using the new backend field structure
   const showCropExtras = !!crop.expectedYieldMin || !!crop.marketPriceTrend;
 
@@ -194,17 +196,17 @@ export default function Recommendations() {
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-muted-foreground">Suitability Score</span>
                   <span className="font-bold text-lg text-success">
-                    {Math.round(crop.suitabilityScore * 100)}%
+                    {Math.round(crop.confidence)}%
                   </span>
                 </div>
                 <div className="h-3 rounded-full bg-muted overflow-hidden">
                   <div 
                     className="h-full gradient-primary rounded-full transition-all duration-1000"
-                    style={{ width: `${crop.suitabilityScore * 100}%` }}
+                    style={{ width: `${crop.confidence}%` }}
                   />
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Confidence based on ML Analysis ({(crop.modelConfidence * 100).toFixed(1)}%) and Suitability Rules.
+                  Confidence based on ML Analysis ({(crop.confidence).toFixed(1)}%) and Suitability Rules.
                 </p>
               </div>
 
@@ -256,13 +258,13 @@ export default function Recommendations() {
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-muted-foreground">Application Confidence</span>
                   <span className="font-bold text-lg text-success">
-                    {Math.round(fertilizer.suitabilityScore * 100)}%
+                    {Math.round(fertilizer.confidence)}%
                   </span>
                 </div>
                 <div className="h-3 rounded-full bg-muted overflow-hidden">
                   <div 
                     className="h-full gradient-earth rounded-full transition-all duration-1000"
-                    style={{ width: `${fertilizer.suitabilityScore * 100}%` }}
+                    style={{ width: `${fertilizer.confidence}%` }}
                   />
                 </div>
               </div>
