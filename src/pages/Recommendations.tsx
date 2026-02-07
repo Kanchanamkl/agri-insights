@@ -256,7 +256,7 @@ export default function Recommendations() {
             <CardContent className="space-y-4">
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-muted-foreground">Application Confidence</span>
+                    <span className="text-sm text-muted-foreground">Fertilizer Match Score</span>
                   <span className="font-bold text-lg text-success">
                     {Math.round(fertilizer.confidence)}%
                   </span>
