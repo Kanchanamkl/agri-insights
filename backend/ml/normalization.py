@@ -16,6 +16,7 @@ SOIL_TYPE_MAPPING = {
     'acidic soil': 'Acidic Soil',
     'neutral soil': 'Neutral Soil',
     'alkaline soil': 'Alkaline Soil',
+    'sandy': 'Sandy Soil',
 }
 
 # Moisture mapping: frontend dropdown -> numeric value
