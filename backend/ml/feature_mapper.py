@@ -47,50 +47,47 @@ class PredictionRequest(BaseModel):
 
 
 class FeatureMapper:
-    """Map frontend request to ML model features"""
+    """Map frontend request to ML model features (Updated for 13-feature Model)"""
 
-    # Feature order MUST match training
+    # MUST match the order used in your enhanced training exactly
     FEATURE_NAMES = [
-        "Temperature",
-        "Moisture",
-        "Rainfall",
-        "PH",
-        "Nitrogen",
-        "Phosphorous",  # Note spelling!
-        "Potassium",
-        "Carbon",
-        "Soil",
+        "Temperature", "Moisture", "Rainfall", "PH", "Humidity",
+        "Nitrogen", "Phosphorous", "Potassium", "Carbon", "Soil",
+        "NPK_Sum", "PH_Stress", "Rain_Temp_Balance"
     ]
 
     @staticmethod
     def extract_features(request: PredictionRequest) -> pd.DataFrame:
-        """
-        Extract features from validated request in correct order.
-        Returns DataFrame with single row in training column order.
-        """
+        # 1. Extract raw validated inputs
+        temp = float(request.environmental.temperature)
+        rain = float(request.environmental.rainfall)
+        hum = float(request.environmental.humidity)
+        n = float(request.soil.nitrogen)
+        p = float(request.soil.phosphorus)
+        k = float(request.soil.potassium)
+        ph = float(request.soil.pH)
+
+        # 2. Calculate Engineered Features (Calculated exactly like training)
+        npk_sum = n + p + k
+        ph_stress = abs(ph - 7.0)
+        rt_balance = rain / (temp + 1)
+
         features = {
-            "Temperature": float(request.environmental.temperature),
-            "Rainfall": float(request.environmental.rainfall),
-            "Moisture": float(request.soil.moisture),  # ✅ normalized to float
-            "PH": float(request.soil.pH),
-            "Nitrogen": float(request.soil.nitrogen),
-            "Phosphorous": float(request.soil.phosphorus),  # Map phosphorus -> Phosphorous
-            "Potassium": float(request.soil.potassium),
+            "Temperature": temp,
+            "Moisture": float(request.soil.moisture),
+            "Rainfall": rain,
+            "PH": ph,
+            "Humidity": hum,
+            "Nitrogen": n,
+            "Phosphorous": p,
+            "Potassium": k,
             "Carbon": float(request.soil.carbon),
-            "Soil": request.soil.soilType,  # ✅ normalized category
+            "Soil": request.soil.soilType,
+            "NPK_Sum": npk_sum,
+            "PH_Stress": ph_stress,
+            "Rain_Temp_Balance": rt_balance
         }
 
         df = pd.DataFrame([features], columns=FeatureMapper.FEATURE_NAMES)
-        logger.info(f"Extracted features: {features}")
+        logger.info(f"Extracted 13 features for model: {list(features.keys())}")
         return df
-
-    @staticmethod
-    def get_extra_fields(request: PredictionRequest) -> Dict[str, Any]:
-        """Extract non-ML fields for database logging"""
-        return {
-            "humidity": request.environmental.humidity,
-            "region": request.field.region,
-            "land_size": request.field.landSize,
-            "irrigation_type": request.field.irrigationType,
-            "previous_crop": request.field.previousCrop,
-        }

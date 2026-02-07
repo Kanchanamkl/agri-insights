@@ -117,13 +117,44 @@ FERTILIZER_METADATA = {
 # Rule ranges for TRUE Suitability
 # (Start small; expand later)
 # ---------------------------
+# Expanded Crop Rules based on Enhanced Dataset Signatures
 CROP_RULES = {
-    "Rice":   {"ph": (5.5, 7.0), "rain": (150, 500), "temp": (22, 32), "moist": (60, 100)},
-    "Maize":  {"ph": (5.8, 7.5), "rain": (80, 200),  "temp": (18, 30), "moist": (40, 80)},
-    "Papaya": {"ph": (5.5, 7.0), "rain": (80, 200),  "temp": (22, 34), "moist": (40, 80)},
-    "Wheat":  {"ph": (6.0, 7.5), "rain": (50, 150),  "temp": (12, 25), "moist": (30, 70)},
-    "Tomato": {"ph": (5.8, 7.0), "rain": (60, 160),  "temp": (18, 30), "moist": (35, 75)},
-    "Cotton": {"ph": (5.5, 7.5), "rain": (50, 200),  "temp": (21, 35), "moist": (30, 70)},
+    # Grains & Cereals
+    "rice":         {"ph": (5.0, 7.5), "rain": (150, 450), "temp": (20, 35), "moist": (60, 100), "hum": (75, 95)},
+    "maize":        {"ph": (5.5, 7.5), "rain": (60, 200),  "temp": (18, 32), "moist": (40, 80),  "hum": (50, 75)},
+    "wheat":        {"ph": (5.5, 7.5), "rain": (40, 150),  "temp": (10, 28), "moist": (30, 70),  "hum": (30, 65)},
+    "millet":       {"ph": (5.0, 8.0), "rain": (30, 100),  "temp": (20, 38), "moist": (25, 60),  "hum": (30, 60)},
+    "Jute":         {"ph": (6.0, 7.5), "rain": (150, 400), "temp": (24, 38), "moist": (70, 100), "hum": (70, 90)},
+
+    # Beans & Legumes
+    "Adzuki Beans": {"ph": (5.5, 7.5), "rain": (60, 150),  "temp": (15, 30), "moist": (40, 75),  "hum": (40, 70)},
+    "Black gram":   {"ph": (5.0, 7.5), "rain": (50, 120),  "temp": (20, 35), "moist": (35, 70),  "hum": (40, 70)},
+    "Chickpea":     {"ph": (6.0, 8.5), "rain": (40, 100),  "temp": (15, 30), "moist": (30, 65),  "hum": (35, 65)},
+    "Kidney Beans": {"ph": (5.5, 7.0), "rain": (60, 150),  "temp": (15, 28), "moist": (40, 75),  "hum": (45, 75)},
+    "Lentil":       {"ph": (5.5, 7.5), "rain": (40, 100),  "temp": (15, 28), "moist": (30, 65),  "hum": (40, 70)},
+    "Moth Beans":   {"ph": (5.5, 8.0), "rain": (30, 80),   "temp": (25, 40), "moist": (20, 55),  "hum": (30, 65)},
+    "Mung Bean":    {"ph": (5.5, 7.5), "rain": (50, 120),  "temp": (20, 35), "moist": (35, 70),  "hum": (40, 75)},
+    "Pigeon Peas":  {"ph": (5.0, 7.5), "rain": (50, 150),  "temp": (18, 35), "moist": (35, 75),  "hum": (45, 75)},
+
+    # Fruits & Commercial
+    "apple":        {"ph": (5.5, 7.0), "rain": (60, 150),  "temp": (10, 25), "moist": (40, 75),  "hum": (45, 75)},
+    "banana":       {"ph": (5.5, 8.0), "rain": (100, 300), "temp": (20, 35), "moist": (60, 95),  "hum": (70, 90)},
+    "coconut":      {"ph": (5.0, 8.0), "rain": (120, 350), "temp": (22, 32), "moist": (60, 100), "hum": (75, 95)},
+    "Coffee":       {"ph": (5.0, 7.0), "rain": (120, 250), "temp": (15, 28), "moist": (50, 85),  "hum": (60, 80)},
+    "Cotton":       {"ph": (5.5, 8.0), "rain": (50, 150),  "temp": (20, 35), "moist": (40, 80),  "hum": (50, 75)},
+    "grapes":       {"ph": (5.5, 7.5), "rain": (40, 120),  "temp": (15, 32), "moist": (35, 70),  "hum": (40, 70)},
+    "mango":        {"ph": (5.0, 7.5), "rain": (75, 200),  "temp": (24, 35), "moist": (45, 80),  "hum": (45, 75)},
+    "muskmelon":    {"ph": (6.0, 7.5), "rain": (40, 100),  "temp": (20, 35), "moist": (35, 65),  "hum": (40, 70)},
+    "orange":       {"ph": (5.5, 7.5), "rain": (60, 180),  "temp": (15, 32), "moist": (40, 75),  "hum": (45, 75)},
+    "papaya":       {"ph": (5.5, 7.0), "rain": (80, 250),  "temp": (22, 35), "moist": (50, 85),  "hum": (65, 85)},
+    "pomegranate":  {"ph": (5.5, 7.5), "rain": (40, 120),  "temp": (18, 35), "moist": (35, 70),  "hum": (40, 70)},
+    "watermelon":   {"ph": (5.5, 7.5), "rain": (40, 100),  "temp": (22, 38), "moist": (35, 65),  "hum": (40, 70)},
+    
+    # Others
+    "Tea":          {"ph": (4.5, 6.0), "rain": (150, 400), "temp": (15, 30), "moist": (60, 95),  "hum": (70, 90)},
+    "Rubber":       {"ph": (4.5, 6.5), "rain": (180, 450), "temp": (22, 35), "moist": (65, 100), "hum": (75, 95)},
+    "Tobacco":      {"ph": (5.5, 7.5), "rain": (60, 150),  "temp": (18, 32), "moist": (40, 75),  "hum": (45, 75)},
+    "Ground Nut":   {"ph": (5.5, 7.0), "rain": (50, 125),  "temp": (22, 32), "moist": (40, 75),  "hum": (50, 75)},
 }
 
 class Predictor:
@@ -162,22 +193,22 @@ class Predictor:
         return max(0.0, 1.0 - (v - hi) / denom)
 
     def _rule_crop_score(self, crop_name: str, features: Dict[str, Any]) -> float:
-        """Compute 0..1 rule suitability score for a crop."""
         rules = CROP_RULES.get(crop_name)
-        if not rules:
-            return 0.0
+        if not rules: return 0.0
 
         ph = float(features.get("PH", 7.0))
         rain = float(features.get("Rainfall", 150))
         temp = float(features.get("Temperature", 28))
         moist = float(features.get("Moisture", 60))
+        hum = float(features.get("Humidity", 60)) # New input
 
         s1 = self._in_range_score(ph, *rules["ph"])
         s2 = self._in_range_score(rain, *rules["rain"])
         s3 = self._in_range_score(temp, *rules["temp"])
         s4 = self._in_range_score(moist, *rules["moist"])
+        s5 = self._in_range_score(hum, *rules["hum"]) # New check
 
-        return (s1 + s2 + s3 + s4) / 4.0
+        return (s1 + s2 + s3 + s4 + s5) / 5.0
 
     def _fertilizer_rule_pick(self, features: Dict[str, Any]) -> str:
         """Simple nutrient-deficiency rule (tune thresholds later)."""

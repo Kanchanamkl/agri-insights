@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { 
   ArrowLeft, 
   Sprout, 
@@ -19,7 +20,8 @@ import {
   Share2,
   Download,
   Clock,
-  CheckCircle2
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -86,7 +88,14 @@ export default function Recommendations() {
     );
   }
 
-  const { crop, fertilizer, featureImportance, alternativeCrops, riskFactors, inputData } = recommendation;
+  const { crop, fertilizer, featureImportance, alternativeCrops, riskFactors, inputData, warnings } = recommendation;
+
+  // Check if crop metadata is available from model
+  const showCropExtras = crop.metaAvailable === true && (
+    crop.expectedYieldMin != null ||
+    crop.marketPriceTrend != null ||
+    crop.growingSeasonStart != null
+  );
 
   const handleShare = () => {
     if (navigator.share) {
@@ -156,6 +165,23 @@ export default function Recommendations() {
           </div>
         </div>
 
+        {/* Warnings Section */}
+        {warnings && warnings.length > 0 && (
+          <div className="mb-6 space-y-3">
+            {warnings.map((warning, i) => (
+              <Alert key={i} variant="destructive" className="bg-warning/10 border-warning text-warning-foreground">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle className="font-semibold">
+                  {warning.type === 'LOW_CROP_CONFIDENCE' ? 'Low Crop Confidence' : 'Low Fertilizer Confidence'}
+                </AlertTitle>
+                <AlertDescription className="text-sm">
+                  {warning.message}
+                </AlertDescription>
+              </Alert>
+            ))}
+          </div>
+        )}
+
         {/* Main Recommendations Grid */}
         <div className="grid md:grid-cols-2 gap-6 mb-8">
           {/* Crop Recommendation Card */}
@@ -165,10 +191,10 @@ export default function Recommendations() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center text-3xl">
-                    {crop.icon}
+                    {crop.icon || '🌱'}
                   </div>
                   <div>
-                    <CardTitle className="text-xl capitalize">{crop.crop}</CardTitle>
+                    <CardTitle className="text-xl capitalize">{crop.label}</CardTitle>
                     <CardDescription>Recommended Crop</CardDescription>
                   </div>
                 </div>
@@ -176,10 +202,10 @@ export default function Recommendations() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Confidence Score */}
+              {/* Suitability Score */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-muted-foreground">Model Confidence</span>
+                  <span className="text-sm text-muted-foreground">Suitability Score</span>
                   <span className="font-bold text-lg text-success">{crop.confidence}%</span>
                 </div>
                 <div className="h-3 rounded-full bg-muted overflow-hidden">
@@ -189,54 +215,34 @@ export default function Recommendations() {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Based on ML model prediction and field conditions
+                  Based on model probability ({(crop.modelConfidence * 100).toFixed(1)}%), margin, and entropy
                 </p>
               </div>
 
-              {/* Details Grid */}
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                <div className="p-3 rounded-lg bg-muted/50">
-                  <p className="text-xs text-muted-foreground">Expected Yield</p>
-                  <p className="font-semibold">{crop.expectedYieldMin} - {crop.expectedYieldMax}</p>
-                  <p className="text-xs text-muted-foreground">{crop.yieldUnit}</p>
-                </div>
-                <div className="p-3 rounded-lg bg-muted/50">
-                  <p className="text-xs text-muted-foreground">Market Trend</p>
-                  <div className="flex items-center gap-1 font-semibold">
-                    {crop.marketPriceTrend === 'rising' && (
-                      <>
-                        <TrendingUp className="h-4 w-4 text-success" />
-                        <span className="text-success">Rising</span>
-                      </>
-                    )}
-                    {crop.marketPriceTrend === 'stable' && (
-                      <>
-                        <Minus className="h-4 w-4 text-muted-foreground" />
-                        <span>Stable</span>
-                      </>
-                    )}
-                    {crop.marketPriceTrend === 'falling' && (
-                      <>
-                        <TrendingDown className="h-4 w-4 text-destructive" />
-                        <span className="text-destructive">Falling</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Growing Season */}
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
-                <Calendar className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="text-xs text-muted-foreground">Growing Season</p>
-                  <p className="font-medium">
-                    {crop.growingSeasonStart}
-                    {crop.growingSeasonEnd && crop.growingSeasonEnd !== crop.growingSeasonStart && 
-                      ` to ${crop.growingSeasonEnd}`}
-                  </p>
-                </div>
-              </div>
+              {/* Conditional Extra Details */}
+              {showCropExtras ? (
+                <>
+                  {/* Only shown if metaAvailable is true */}
+                  {(crop.expectedYieldMin != null && crop.expectedYieldMax != null) && (
+                    <div className="p-3 rounded-lg bg-muted/50">
+                      <p className="text-xs text-muted-foreground">Expected Yield</p>
+                      <p className="font-semibold">{crop.expectedYieldMin} - {crop.expectedYieldMax}</p>
+                      <p className="text-xs text-muted-foreground">{crop.yieldUnit}</p>
+                    </div>
+                  )}
+                  {/* ...other conditional blocks... */}
+                </>
+              ) : (
+                /* Metadata Not Available Alert */
+                <Alert className="bg-muted/30 border-muted">
+                  <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                  <AlertDescription className="text-xs text-muted-foreground">
+                    <span className="font-medium text-foreground">Agronomic details not shown</span>
+                    <br />
+                    Yield, season, and market data are not derived from the current ML model.
+                  </AlertDescription>
+                </Alert>
+              )}
             </CardContent>
           </Card>
 
@@ -267,6 +273,23 @@ export default function Recommendations() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Confidence Score */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-muted-foreground">Recommendation Confidence</span>
+                  <span className="font-bold text-lg text-success">{fertilizer.confidence}%</span>
+                </div>
+                <div className="h-3 rounded-full bg-muted overflow-hidden">
+                  <div 
+                    className="h-full gradient-earth rounded-full transition-all duration-1000"
+                    style={{ width: `${fertilizer.confidence}%` }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Model probability: {(fertilizer.modelConfidence * 100).toFixed(1)}%
+                </p>
+              </div>
+
               {/* Fertilizer Type */}
               <div className="p-3 rounded-lg bg-muted/50">
                 <p className="text-xs text-muted-foreground mb-1">Recommended Mix</p>

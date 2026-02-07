@@ -31,6 +31,6 @@ class Config:
     METADATA_PATH = os.path.join(MODELS_DIR, 'metadata.json')
     
     # Dataset
-    DATASET_PATH = os.path.join(DATA_DIR, 'fertilizer_recommendation_dataset.csv')
+    DATASET_PATH = os.path.join(DATA_DIR, 'enhanced_crop_fertlizer_dataset.csv')
 
 config = Config()

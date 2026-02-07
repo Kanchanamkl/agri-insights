@@ -14,6 +14,8 @@ from sklearn.metrics import classification_report, confusion_matrix, f1_score, a
 import sklearn
 from config import config
 from utils.helpers import get_logger
+from imblearn.over_sampling import SMOTE
+from imblearn.pipeline import Pipeline as ImbPipeline
 
 logger = get_logger(__name__)
 
@@ -26,9 +28,9 @@ class ModelTrainer:
         self.metadata = {}
         
     def load_data(self):
-        """Load and validate dataset"""
+        """Load, validate, and aggressively clean dataset"""
         logger.info(f"Loading dataset from {config.DATASET_PATH}")
-        self.df = pd.read_csv(config.DATASET_PATH)
+        df = pd.read_csv(config.DATASET_PATH)
         
         required_cols = [
             'Temperature', 'Moisture', 'Rainfall', 'PH',
@@ -36,14 +38,28 @@ class ModelTrainer:
             'Soil', 'Crop', 'Fertilizer', 'Remark'
         ]
         
-        missing = set(required_cols) - set(self.df.columns)
+        missing = set(required_cols) - set(df.columns)
         if missing:
             raise ValueError(f"Missing columns: {missing}")
+
+        # --- DATA CLEANING PHASE ---
+        initial_count = len(df)
         
-        logger.info(f"Dataset loaded: {len(self.df)} rows, {len(self.df.columns)} columns")
-        logger.info(f"Soil types: {self.df['Soil'].unique().tolist()}")
-        logger.info(f"Crop classes: {self.df['Crop'].nunique()}")
-        logger.info(f"Fertilizer classes: {self.df['Fertilizer'].nunique()}")
+        # 1. Remove impossible physical values
+        df = df[df['Rainfall'] >= 0]
+        df = df[df['Temperature'].between(10, 50)]
+        df = df[df['PH'].between(3, 10)]
+        df = df[df['Potassium'] >= -1] # allowing slight negative if it's a sensor error, but usually >=0
+        
+        # 2. Remove exact duplicates that cause overfitting
+        df = df.drop_duplicates(subset=['Temperature', 'Moisture', 'Rainfall', 'PH', 'Nitrogen', 'Phosphorous', 'Potassium'])
+        
+        cleaned_count = len(df)
+        logger.info(f"Cleaning complete: Removed {initial_count - cleaned_count} rows of noise/duplicates.")
+        
+        self.df = df
+        logger.info(f"Dataset ready: {len(self.df)} rows")
+        logger.info(f"Crop classes: {self.df['Crop'].nunique()}, Fertilizer classes: {self.df['Fertilizer'].nunique()}")
         
     def prepare_features(self):
         """Prepare feature matrix and targets"""
@@ -85,110 +101,50 @@ class ModelTrainer:
         return preprocessor
     
     def train_model(self, X, y, task_name='crop'):
-        """Train model with hyperparameter tuning"""
-        logger.info(f"Training {task_name} model...")
-        
-        # Stratified split
-        X_temp, X_test, y_temp, y_test = train_test_split(
-            X, y, test_size=0.15, random_state=42, stratify=y
-        )
-        X_train, X_val, y_train, y_val = train_test_split(
-            X_temp, y_temp, test_size=0.15, random_state=42, stratify=y_temp
-        )
-        
-        logger.info(f"Split: train={len(X_train)}, val={len(X_val)}, test={len(X_test)}")
-        
-        # Build preprocessor
-        preprocessor = self.build_preprocessor(X.columns.tolist())
-        
-        # Model candidates
-        models = {
-            'LogisticRegression': LogisticRegression(
-                multi_class='multinomial',
-                max_iter=1000,
-                random_state=42
-            ),
-            'RandomForest': RandomForestClassifier(random_state=42),
-            'GradientBoosting': GradientBoostingClassifier(random_state=42)
-        }
-        
-        param_grids = {
-            'LogisticRegression': {
-                'classifier__C': [0.1, 1, 10],
-                'classifier__solver': ['lbfgs']
-            },
-            'RandomForest': {
-                'classifier__n_estimators': [100],
-                'classifier__max_depth': [10, 20],
-                'classifier__min_samples_split': [2]
-            },
-            'GradientBoosting': {
-                'classifier__n_estimators': [100],
-                'classifier__learning_rate': [0.1],
-                'classifier__max_depth': [3]
-            }
-        }
-        
-        best_score = 0
-        best_model = None
-        best_name = None
-        
-        for name, clf in models.items():
-            logger.info(f"  Testing {name}...")
+            logger.info(f"Training {task_name} with Hyperparameter Tuning...")
+
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y, test_size=0.15, random_state=42, stratify=y
+            )
+
+            # Preprocessor setup (Numerical + Categorical)
+            numeric_features = X.select_dtypes(include=['int64', 'float64']).columns.tolist()
+            preprocessor = ColumnTransformer([
+                ('num', StandardScaler(), numeric_features),
+                ('cat', OneHotEncoder(handle_unknown='ignore'), ['Soil'])
+            ])
+
             pipeline = Pipeline([
                 ('preprocessor', preprocessor),
-                ('classifier', clf)
+                ('classifier', RandomForestClassifier(random_state=42))
             ])
-            
-            search = RandomizedSearchCV(
-                pipeline,
-                param_grids[name],
-                n_iter=3,
-                cv=3,
-                scoring='f1_macro',
-                random_state=42,
-                n_jobs=-1
-            )
-            
+
+            # This is what makes it take time but increases accuracy
+            param_grid = {
+                'classifier__n_estimators': [300, 500, 1000],
+                'classifier__max_depth': [20, 40, None],
+                'classifier__min_samples_split': [2, 5]
+            }
+
+            # Increase n_iter to 10 or 20 for better results
+            search = RandomizedSearchCV(pipeline, param_grid, n_iter=10, cv=3, n_jobs=-1)
             search.fit(X_train, y_train)
-            score = search.best_score_
+
+            best_model = search.best_estimator_
+            acc = accuracy_score(y_test, best_model.predict(X_test))
             
-            logger.info(f"    {name} CV F1-macro: {score:.4f}")
+            # FIX THE KEYERROR HERE:
+            report = {
+                'task': task_name,
+                'best_model': 'RandomForest (Tuned)',
+                'test_accuracy': float(acc),
+                'train_samples': len(X_train),
+                'test_samples': len(X_test),
+                'val_samples': 0, # Explicitly add this so the print function doesn't crash
+                'classes': sorted(y.unique().tolist())
+            }
             
-            if score > best_score:
-                best_score = score
-                best_model = search.best_estimator_
-                best_name = name
-        
-        logger.info(f"  Best model: {best_name} (F1={best_score:.4f})")
-        
-        # Evaluate on test set
-        y_pred = best_model.predict(X_test)
-        acc = accuracy_score(y_test, y_pred)
-        f1_macro = f1_score(y_test, y_pred, average='macro')
-        f1_weighted = f1_score(y_test, y_pred, average='weighted')
-        
-        logger.info(f"  Test accuracy: {acc:.4f}")
-        logger.info(f"  Test F1-macro: {f1_macro:.4f}")
-        logger.info(f"  Test F1-weighted: {f1_weighted:.4f}")
-        
-        report = {
-            'task': task_name,
-            'best_model': best_name,
-            'cv_f1_macro': float(best_score),
-            'test_accuracy': float(acc),
-            'test_f1_macro': float(f1_macro),
-            'test_f1_weighted': float(f1_weighted),
-            'classification_report': classification_report(y_test, y_pred),
-            'confusion_matrix': confusion_matrix(y_test, y_pred).tolist(),
-            'classes': sorted(y.unique().tolist()),
-            'num_classes': len(y.unique()),
-            'train_samples': len(X_train),
-            'val_samples': len(X_val),
-            'test_samples': len(X_test)
-        }
-        
-        return best_model, report
+            return best_model, report   
     
     def train_all(self):
         """Train both crop and fertilizer models"""
@@ -257,73 +213,58 @@ class ModelTrainer:
 
 
 def print_training_summary(training_report):
-    """Print a detailed training summary for both models"""
+    """Print a detailed training summary for both models safely"""
     
     print("\n" + "="*80)
     print(" "*25 + "TRAINING SUMMARY")
     print("="*80)
     
-    # Crop Model Summary
-    crop_report = training_report['crop']
-    print("\n" + "─"*80)
-    print("  CROP RECOMMENDATION MODEL")
-    print("─"*80)
-    print(f"  Model Algorithm:        {crop_report['best_model']}")
-    print(f"  Number of Classes:      {crop_report['num_classes']}")
-    print(f"  Training Samples:       {crop_report['train_samples']}")
-    print(f"  Validation Samples:     {crop_report['val_samples']}")
-    print(f"  Test Samples:           {crop_report['test_samples']}")
-    print()
-    print("  Performance Metrics:")
-    print(f"    • Cross-Validation F1 (Macro):  {crop_report['cv_f1_macro']:.4f}")
-    print(f"    • Test Accuracy:                {crop_report['test_accuracy']:.4f} ({crop_report['test_accuracy']*100:.2f}%)")
-    print(f"    • Test F1-Score (Macro):        {crop_report['test_f1_macro']:.4f}")
-    print(f"    • Test F1-Score (Weighted):     {crop_report['test_f1_weighted']:.4f}")
-    print()
-    print(f"  Crop Classes ({len(crop_report['classes'])}):")
-    classes_str = ", ".join(crop_report['classes'][:10])
-    if len(crop_report['classes']) > 10:
-        classes_str += f", ... (+{len(crop_report['classes']) - 10} more)"
-    print(f"    {classes_str}")
-    
-    # Fertilizer Model Summary
-    fertilizer_report = training_report['fertilizer']
-    print("\n" + "─"*80)
-    print("  FERTILIZER RECOMMENDATION MODEL")
-    print("─"*80)
-    print(f"  Model Algorithm:        {fertilizer_report['best_model']}")
-    print(f"  Number of Classes:      {fertilizer_report['num_classes']}")
-    print(f"  Training Samples:       {fertilizer_report['train_samples']}")
-    print(f"  Validation Samples:     {fertilizer_report['val_samples']}")
-    print(f"  Test Samples:           {fertilizer_report['test_samples']}")
-    print()
-    print("  Performance Metrics:")
-    print(f"    • Cross-Validation F1 (Macro):  {fertilizer_report['cv_f1_macro']:.4f}")
-    print(f"    • Test Accuracy:                {fertilizer_report['test_accuracy']:.4f} ({fertilizer_report['test_accuracy']*100:.2f}%)")
-    print(f"    • Test F1-Score (Macro):        {fertilizer_report['test_f1_macro']:.4f}")
-    print(f"    • Test F1-Score (Weighted):     {fertilizer_report['test_f1_weighted']:.4f}")
-    print()
-    print(f"  Fertilizer Classes ({len(fertilizer_report['classes'])}):")
-    fert_classes_str = ", ".join(fertilizer_report['classes'][:10])
-    if len(fertilizer_report['classes']) > 10:
-        fert_classes_str += f", ... (+{len(fertilizer_report['classes']) - 10} more)"
-    print(f"    {fert_classes_str}")
-    
-    # Metadata
-    metadata = training_report['metadata']
-    print("\n" + "─"*80)
-    print("  ADDITIONAL INFO")
-    print("─"*80)
-    print(f"  Model Version:          {metadata['model_version']}")
-    print(f"  Sklearn Version:        {metadata['sklearn_version']}")
-    print(f"  Training Date:          {metadata['training_date']}")
-    print(f"  Remark Map Size:        {metadata['remark_map_size']} fertilizer types")
-    print(f"  Soil Types:             {len(metadata['soil_types'])} ({', '.join(metadata['soil_types'])})")
+    # Process both models (crop and fertilizer)
+    for model_key in ['crop', 'fertilizer']:
+        if model_key not in training_report:
+            continue
+            
+        report = training_report[model_key]
+        model_name = "CROP RECOMMENDATION" if model_key == 'crop' else "FERTILIZER RECOMMENDATION"
+        
+        print("\n" + "─"*80)
+        print(f"  {model_name} MODEL")
+        print("─"*80)
+        print(f"  Model Algorithm:        {report.get('best_model', 'Unknown')}")
+        print(f"  Number of Classes:      {report.get('num_classes', 'N/A')}")
+        print(f"  Training Samples:       {report.get('train_samples', 0)}")
+        print(f"  Validation Samples:     {report.get('val_samples', 0)}")
+        print(f"  Test Samples:           {report.get('test_samples', 0)}")
+        print()
+        print("  Performance Metrics:")
+        # We check accuracy_score if test_accuracy is missing
+        acc = report.get('test_accuracy', 0)
+        print(f"    • Test Accuracy:                {acc:.4f} ({acc*100:.2f}%)")
+        # print(f"    • Test F1-Score (Macro):        {report.get('test_f1_macro', 0):.4f}")
+        # print(f"    • Test F1-Score (Weighted):     {report.get('test_f1_weighted', 0):.4f}")
+        
+        if 'classes' in report:
+            print()
+            print(f"  Classes ({len(report['classes'])}):")
+            classes_str = ", ".join(report['classes'][:10])
+            if len(report['classes']) > 10:
+                classes_str += f", ... (+{len(report['classes']) - 10} more)"
+            print(f"    {classes_str}")
+
+    # Metadata Section
+    if 'metadata' in training_report:
+        metadata = training_report['metadata']
+        print("\n" + "─"*80)
+        print("  ADDITIONAL INFO")
+        print("─"*80)
+        print(f"  Model Version:          {metadata.get('model_version', 'v1.0')}")
+        print(f"  Sklearn Version:        {metadata.get('sklearn_version', 'N/A')}")
+        print(f"  Training Date:          {metadata.get('training_date', 'N/A')}")
+        print(f"  Soil Types:             {len(metadata.get('soil_types', []))}")
     
     print("\n" + "="*80)
     print(" "*25 + "TRAINING COMPLETED")
     print("="*80 + "\n")
-
 
 def main():
     """Main training script"""
