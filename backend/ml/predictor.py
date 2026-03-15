@@ -267,15 +267,36 @@ class Predictor:
     # ---------------------------
     def predict_crop(self, features_df) -> Tuple[str, float, List[Dict]]:
         """Predict crop with probabilities"""
-        proba = self._safe_predict_proba(self.crop_model, features_df)
-        classes = self._get_classes(self.crop_model)
+        logger.info("=" * 80)
+        logger.info("CROP : PREDICTION PROCESS")
+        logger.info("=" * 80)
 
+
+        logger.info("CROP : Starting crop prediction")
+        logger.info("CROP : Input features shape: %s", features_df.shape)
+        logger.info("CROP : Input features columns: %s", list(features_df.columns))
+
+        # Step 1: Get probability distribution across all crop classes
+        proba = self._safe_predict_proba(self.crop_model, features_df)
+        logger.info("CROP : Prediction probabilities: %s", proba)
+
+        # Step 2: Get the crop class labels from the trained model
+        classes = self._get_classes(self.crop_model)
+        logger.info("CROP : Model classes: %s", classes)
+
+        # Step 3: Identify the class with the highest probability
         top_idx = int(np.argmax(proba))
         crop_label = str(classes[top_idx])
         confidence = float(proba[top_idx])
+        logger.info(
+            "CROP : Best prediction: crop='%s', confidence=%.4f (index=%d)",
+            crop_label, confidence, top_idx
+        )
 
+        # Step 4: Get top-5 predictions sorted by probability (descending)
         top_k_indices = np.argsort(proba)[::-1][:5]
         top_k = [{'label': str(classes[i]), 'prob': float(proba[i])} for i in top_k_indices]
+        logger.info("CROP : Top-5 predictions: %s", top_k)
 
         return crop_label, confidence, top_k
 
@@ -283,17 +304,74 @@ class Predictor:
     # Fertilizer prediction
     # ---------------------------
     def predict_fertilizer(self, features_df) -> Tuple[str, float, List[Dict]]:
-        """Predict fertilizer with probabilities"""
+        """
+        Predict fertilizer recommendation with probabilities and detailed logging
+        
+        Returns:
+            (fertilizer_label, confidence, top_k_list)
+        """
+        logger.info("=" * 80)
+        logger.info("FERTILIZER PREDICTION PROCESS")
+        logger.info("=" * 80)
+        
+        # ─── STEP 1: Extract Raw Probabilities ───
+        logger.info("\n[STEP 1] Getting Model Probabilities")
+        logger.debug("FERTILIZER : Input features shape: %s", features_df.shape)
+        logger.debug("FERTILIZER : Input features columns: %s", list(features_df.columns))
+        
         proba = self._safe_predict_proba(self.fertilizer_model, features_df)
+        
+        logger.info(f"FERTILIZER :Raw probability array: {proba}")
+        logger.info(f"FERTILIZER :Array length: {len(proba)} (number of fertilizer classes)")
+        logger.info(f"FERTILIZER :Sum of probabilities: {proba.sum():.4f} (should be 1.0)")
+        
+        # ─── STEP 2: Get Fertilizer Class Labels ───
+        logger.info("\n[STEP 2]FERTILIZER :Retrieving Fertilizer Classes from Model")
         classes = self._get_classes(self.fertilizer_model)
-
+        
+        logger.info(f"FERTILIZER :Available fertilizer types: {list(classes)}")
+        logger.info(f"FERTILIZER :Total fertilizer classes: {len(classes)}")
+        
+        # Create a mapping for clarity
+        class_prob_map = {str(classes[i]): float(proba[i]) for i in range(len(classes))}
+        logger.debug("FERTILIZER :Class-to-Probability mapping:")
+        for fert_type, prob in sorted(class_prob_map.items(), key=lambda x: x[1], reverse=True):
+            logger.debug(f"  {fert_type:30s} → {prob:.4f} ({prob*100:6.2f}%)")
+        
+        # ─── STEP 3: Identify Best Prediction ───
+        logger.info("\n[STEP 3] Finding Best Prediction (Highest Probability)")
         top_idx = int(np.argmax(proba))
         fert_label = str(classes[top_idx])
         confidence = float(proba[top_idx])
-
+        
+        logger.info(f"FERTILIZER :Highest probability index: {top_idx}")
+        logger.info(f"FERTILIZER :Best fertilizer: {fert_label}")
+        logger.info(f"FERTILIZER :Model confidence: {confidence:.4f} ({confidence*100:.2f}%)")
+        
+        # ─── STEP 4: Get Top-5 Alternatives ───
+        logger.info("\n[STEP 4] FERTILIZER : Generating Top-5 Alternative Fertilizers")
         top_k_indices = np.argsort(proba)[::-1][:5]
-        top_k = [{'label': str(classes[i]), 'prob': float(proba[i])} for i in top_k_indices]
-
+        
+        logger.info(f"FERTILIZER : Top-5 indices (sorted descending): {top_k_indices}")
+        
+        top_k = []
+        for rank, idx in enumerate(top_k_indices, start=1):
+            fert_name = str(classes[idx])
+            prob_value = float(proba[idx])
+            percentage = prob_value * 100
+            
+            log_line = f"  {rank}. {fert_name:30s} → {prob_value:.4f} ({percentage:6.2f}%)"
+            logger.info(log_line)
+            
+            top_k.append({
+                'label': fert_name,
+                'prob': prob_value
+            })
+        
+        logger.info("=" * 80)
+        logger.info(f"FERTILIZER : RESULT: {fert_label} (confidence: {confidence:.2%})")
+        logger.info("=" * 80 + "\n")
+        
         return fert_label, confidence, top_k
 
     def get_crop_metadata(self, crop: str) -> Dict:
@@ -404,63 +482,202 @@ class Predictor:
     # Main predict (frontend compatible)
     # ---------------------------
     def predict(self, request: PredictionRequest) -> Dict[str, Any]:
+        """
+        Main prediction method - combines ML models with agricultural rules
+        to provide crop & fertilizer recommendations
+        """
+        
+        logger.info("=" * 100)
+        logger.info("█" * 100)
+        logger.info("STARTING COMPREHENSIVE PREDICTION")
+        logger.info("█" * 100)
+        logger.info("=" * 100)
+        
+        # ═══════════════════════════════════════════════════════════════════════════════
+        # PHASE 0: INITIALIZATION & MODEL CHECK
+        # ═══════════════════════════════════════════════════════════════════════════════
+        logger.info("\n[PHASE 0] INITIALIZATION & MODEL CHECK")
+        logger.info("-" * 100)
+        
         if not self.models_loaded:
+            logger.error("CRITICAL: Models not loaded!")
             raise RuntimeError("Models not loaded. Please train models first.")
-
-        features_df = FeatureMapper.extract_features(request)
-        features = features_df.iloc[0].to_dict()
-
+        
+        logger.info("✓ Models loaded successfully")
+        logger.info(f"  • Model Version: {self.metadata.get('model_version', 'unknown')}")
+        logger.info(f"  • Crop Classes: {len(self.metadata.get('crop_classes', []))} types")
+        logger.info(f"  • Fertilizer Classes: {len(self.metadata.get('fertilizer_classes', []))} types")
+        
+        # ═══════════════════════════════════════════════════════════════════════════════
+        # PHASE 1: FEATURE EXTRACTION & VALIDATION
+        # ═══════════════════════════════════════════════════════════════════════════════
+        logger.info("\n[PHASE 1] FEATURE EXTRACTION & VALIDATION")
+        logger.info("-" * 100)
+        
+        try:
+            features_df = FeatureMapper.extract_features(request)
+            features = features_df.iloc[0].to_dict()
+            
+            logger.info("✓ Features extracted successfully")
+            logger.info(f"  • DataFrame shape: {features_df.shape}")
+            logger.info(f"  • Features extracted: {len(features)} parameters")
+            
+            # Log individual features for debugging
+            logger.debug("\n  Detailed Feature Values:")
+            logger.debug(f"    SOIL:")
+            logger.debug(f"      - Nitrogen (N):        {features.get('Nitrogen', 'N/A')} ppm")
+            logger.debug(f"      - Phosphorus (P):      {features.get('Phosphorous', 'N/A')} ppm")
+            logger.debug(f"      - Potassium (K):       {features.get('Potassium', 'N/A')} ppm")
+            logger.debug(f"      - Carbon (C):          {features.get('Carbon', 'N/A')} ppm")
+            logger.debug(f"      - pH:                  {features.get('PH', 'N/A')}")
+            logger.debug(f"      - Moisture:            {features.get('Moisture', 'N/A')}%")
+            logger.debug(f"      - Soil Type:           {features.get('Soil', 'N/A')}")
+            logger.debug(f"    ENVIRONMENTAL:")
+            logger.debug(f"      - Temperature:         {features.get('Temperature', 'N/A')}°C")
+            logger.debug(f"      - Rainfall:            {features.get('Rainfall', 'N/A')} mm")
+            logger.debug(f"      - Humidity:            {features.get('Humidity', 'N/A')}%")
+            
+        except Exception as e:
+            logger.error(f"✗ Feature extraction failed: {str(e)}", exc_info=True)
+            raise
+        
         warnings: List[Dict[str, str]] = []
-
-        # ---- Crop (model) ----
-        crop_label, crop_model_conf, crop_top_k_model = self.predict_crop(features_df)
-        is_crop_low = crop_model_conf < LOW_CONF_CROP
-
-        # Compute rule scores for top_k candidates
+        
+        # ═══════════════════════════════════════════════════════════════════════════════
+        # PHASE 2: CROP PREDICTION (ML MODEL)
+        # ═══════════════════════════════════════════════════════════════════════════════
+        logger.info("\n[PHASE 2] CROP PREDICTION (ML MODEL)")
+        logger.info("-" * 100)
+        
+        try:
+            crop_label, crop_model_conf, crop_top_k_model = self.predict_crop(features_df)
+            is_crop_low = crop_model_conf < LOW_CONF_CROP
+            
+            logger.info(f"\n✓ Crop prediction complete")
+            logger.info(f"  • Best Prediction: {crop_label}")
+            logger.info(f"  • Model Confidence: {crop_model_conf:.4f} ({crop_model_conf*100:.2f}%)")
+            logger.info(f"  • Low Confidence Flag: {'YES ⚠️' if is_crop_low else 'NO ✓'}")
+            logger.info(f"  • Threshold: {LOW_CONF_CROP} ({LOW_CONF_CROP*100:.0f}%)")
+            
+            logger.info(f"\n  Top-5 Model Predictions:")
+            for rank, item in enumerate(crop_top_k_model, 1):
+                logger.info(f"    {rank}. {item['label']:25s} → {item['prob']:.4f} ({item['prob']*100:6.2f}%)")
+                
+        except Exception as e:
+            logger.error(f"✗ Crop prediction failed: {str(e)}", exc_info=True)
+            raise
+        
+        # ═══════════════════════════════════════════════════════════════════════════════
+        # PHASE 3: CROP RULE-BASED SCORING
+        # ═══════════════════════════════════════════════════════════════════════════════
+        logger.info("\n[PHASE 3] CROP RULE-BASED SCORING")
+        logger.info("-" * 100)
+        logger.info("  Evaluating top-5 crops against agricultural suitability rules...\n")
+        
         scored_candidates = []
+        
         for item in crop_top_k_model:
             name = item["label"]
+            
+            # Get rule score
             rule_score = self._rule_crop_score(name, features)
+            
+            # Get hybrid score
             hybrid = self._hybrid_suitability(float(item["prob"]), rule_score, is_crop_low)
+            
             scored_candidates.append({
                 "label": name,
                 "modelProb": float(item["prob"]),
                 "ruleScore": float(rule_score),
-                "prob": float(hybrid),  # NOTE: now this is "match/suitability"
+                "prob": float(hybrid),
             })
-
+            
+            # Log individual crop evaluation
+            model_pct = item["prob"] * 100
+            rule_pct = rule_score * 100
+            hybrid_pct = hybrid * 100
+            
+            logger.info(f"  {name:25s}:")
+            logger.info(f"    • Model Probability:  {item['prob']:.4f} ({model_pct:6.2f}%)")
+            logger.info(f"    • Rule Suitability:   {rule_score:.4f} ({rule_pct:6.2f}%)")
+            
+            if is_crop_low:
+                logger.info(f"    • Weight (Low Conf):  30% ML + 70% Rules")
+            else:
+                logger.info(f"    • Weight (High Conf): 70% ML + 30% Rules")
+            
+            logger.info(f"    • Hybrid Score:       {hybrid:.4f} ({hybrid_pct:6.2f}%) ★")
+        
+        # Sort by hybrid score (descending)
         scored_candidates.sort(key=lambda x: x["prob"], reverse=True)
-
-        # Decide final crop label (override if low confidence and rules strongly disagree)
+        
+        logger.info(f"\n  After Rule Evaluation (Sorted by Suitability):")
+        for rank, candidate in enumerate(scored_candidates, 1):
+            logger.info(f"    {rank}. {candidate['label']:25s} → {candidate['prob']:.4f} ({candidate['prob']*100:6.2f}%)")
+        
+        # ═══════════════════════════════════════════════════════════════════════════════
+        # PHASE 4: CROP DECISION LOGIC
+        # ═══════════════════════════════════════════════════════════════════════════════
+        logger.info("\n[PHASE 4] CROP DECISION LOGIC")
+        logger.info("-" * 100)
+        
         final_crop = scored_candidates[0]["label"]
         final_suitability = float(scored_candidates[0]["prob"])
-
+        
+        logger.info(f"  Final Crop Selection: {final_crop}")
+        logger.info(f"  Final Suitability Score: {final_suitability:.4f} ({final_suitability*100:.2f}%)")
+        
         # Compare model-top vs rule-top for override messaging
         model_top = crop_label
         model_top_rule = self._rule_crop_score(model_top, features)
         model_top_hybrid = self._hybrid_suitability(crop_model_conf, model_top_rule, is_crop_low)
-
-        if is_crop_low:
-            warnings.append({
-                "type": "LOW_CROP_CONFIDENCE",
-                "message": f"Low crop model confidence ({int(crop_model_conf*100)}%). Suitability rules are used to stabilize recommendations."
-            })
-
-            # if the best hybrid is significantly higher than model-top hybrid, warn override
-            if (final_suitability - model_top_hybrid) >= STRONG_RULE_ADVANTAGE and final_crop != model_top:
-                warnings.append({
-                    "type": "CROP_OVERRIDDEN_BY_SUITABILITY",
-                    "message": f"Suitability score favors {final_crop} over {model_top} for current soil/climate."
-                })
-
+        
+        logger.info(f"\n  Comparison with Model's First Choice ({model_top}):")
+        logger.info(f"    • Model Top Hybrid Score: {model_top_hybrid:.4f} ({model_top_hybrid*100:.2f}%)")
+        logger.info(f"    • Final Top Hybrid Score: {final_suitability:.4f} ({final_suitability*100:.2f}%)")
+        logger.info(f"    • Difference: {(final_suitability - model_top_hybrid):.4f}")
+        
+        # Check for override conditions
+        # if is_crop_low:
+        #     logger.info(f"\n  ⚠️  LOW CONFIDENCE MODE ACTIVE")
+        #     logger.info(f"    • Model confidence ({crop_model_conf*100:.1f}%) < threshold ({LOW_CONF_CROP*100:.0f}%)")
+        #     logger.info(f"    • Agricultural rules weighted higher (70%)")
+            
+        #     warnings.append({
+        #         "type": "LOW_CROP_CONFIDENCE",
+        #         "message": f"Low crop model confidence ({int(crop_model_conf*100)}%). Suitability rules are used to stabilize recommendations."
+        #     })
+            
+        #     # Check if rules strongly disagree with model
+        #     if (final_suitability - model_top_hybrid) >= STRONG_RULE_ADVANTAGE and final_crop != model_top:
+        #         logger.warning(f"\n  ⚠️  CROP OVERRIDE TRIGGERED (Rule Advantage ≥ {STRONG_RULE_ADVANTAGE})")
+        #         logger.warning(f"    • Model suggested: {model_top} ({model_top_hybrid*100:.1f}% suitability)")
+        #         logger.warning(f"    • Rules prefer: {final_crop} ({final_suitability*100:.1f}% suitability)")
+        #         logger.warning(f"    • Reason: Better soil/climate match for {final_crop}")
+                
+        #         warnings.append({
+        #             "type": "CROP_OVERRIDDEN_BY_SUITABILITY",
+        #             "message": f"Suitability score favors {final_crop} over {model_top} for current soil/climate."
+        #         })
+        # else:
+        #     logger.info(f"\n  ✓ HIGH CONFIDENCE MODE")
+        #     logger.info(f"    • Model confidence ({crop_model_conf*100:.1f}%) ≥ threshold ({LOW_CONF_CROP*100:.0f}%)")
+        #     logger.info(f"    • ML model weighted higher (70%)")
+        
+        # Get crop metadata
         crop_meta = self.get_crop_metadata(final_crop)
-
-        # Build crop block (IMPORTANT: confidence now = suitability)
+        logger.info(f"\n  Loading metadata for {final_crop}:")
+        logger.info(f"    • Icon: {crop_meta['icon']}")
+        logger.info(f"    • Expected Yield: {crop_meta['expectedYieldMin']}-{crop_meta['expectedYieldMax']} {crop_meta['yieldUnit']}")
+        logger.info(f"    • Growing Season: {crop_meta['growingSeasonStart']} to {crop_meta['growingSeasonEnd']}")
+        logger.info(f"    • Market Trend: {crop_meta['marketPriceTrend']}")
+        
+        # Build crop block
         crop_block = {
             'label': final_crop,
-            'confidence': safe_round(final_suitability, 2),          # used by UI -> shows meaningful %
-            'modelConfidence': safe_round(crop_model_conf, 3),       # keep raw probability for debugging
-            'suitabilityScore': safe_round(final_suitability, 2),    # explicit
+            'confidence': safe_round(final_suitability, 2),
+            'modelConfidence': safe_round(crop_model_conf, 3),
+            'suitabilityScore': safe_round(final_suitability, 2),
             'icon': crop_meta['icon'],
             'expectedYieldMin': crop_meta['expectedYieldMin'],
             'expectedYieldMax': crop_meta['expectedYieldMax'],
@@ -471,42 +688,119 @@ class Predictor:
             'top_k': [
                 {
                     "label": x["label"],
-                    "prob": safe_round(x["prob"], 3),         # suitability-like
+                    "prob": safe_round(x["prob"], 3),
                     "modelProb": safe_round(x["modelProb"], 3),
                     "ruleScore": safe_round(x["ruleScore"], 3),
                 }
                 for x in scored_candidates[:5]
             ]
         }
-
-        # ---- Fertilizer (model) ----
-        fert_label, fert_model_conf, fert_top_k_model = self.predict_fertilizer(features_df)
-        is_fert_low = fert_model_conf < LOW_CONF_FERT
-
+        
+        logger.info(f"\n✓ Crop block prepared for response")
+        
+        # ═══════════════════════════════════════════════════════════════════════════════
+        # PHASE 5: FERTILIZER PREDICTION (ML MODEL)
+        # ═══════════════════════════════════════════════════════════════════════════════
+        logger.info("\n[PHASE 5] FERTILIZER PREDICTION (ML MODEL)")
+        logger.info("-" * 100)
+        
+        try:
+            fert_label, fert_model_conf, fert_top_k_model = self.predict_fertilizer(features_df)
+            is_fert_low = fert_model_conf < LOW_CONF_FERT
+            
+            logger.info(f"\n✓ Fertilizer prediction complete")
+            logger.info(f"  • Best Prediction: {fert_label}")
+            logger.info(f"  • Model Confidence: {fert_model_conf:.4f} ({fert_model_conf*100:.2f}%)")
+            logger.info(f"  • Low Confidence Flag: {'YES ⚠️' if is_fert_low else 'NO ✓'}")
+            logger.info(f"  • Threshold: {LOW_CONF_FERT} ({LOW_CONF_FERT*100:.0f}%)")
+            
+            logger.info(f"\n  Top-5 Model Predictions:")
+            for rank, item in enumerate(fert_top_k_model, 1):
+                logger.info(f"    {rank}. {item['label']:30s} → {item['prob']:.4f} ({item['prob']*100:6.2f}%)")
+                
+        except Exception as e:
+            logger.error(f"✗ Fertilizer prediction failed: {str(e)}", exc_info=True)
+            raise
+        
+        # ═══════════════════════════════════════════════════════════════════════════════
+        # PHASE 6: FERTILIZER RULE-BASED DECISION
+        # ═══════════════════════════════════════════════════════════════════════════════
+        logger.info("\n[PHASE 6] FERTILIZER RULE-BASED DECISION")
+        logger.info("-" * 100)
+        
         final_fert = fert_label
+        rule_fert = self._fertilizer_rule_pick(features)
+        
+        logger.info(f"  Nutrient Analysis:")
+        n = float(features.get("Nitrogen", 100))
+        p = float(features.get("Phosphorous", 50))
+        k = float(features.get("Potassium", 100))
+        
+        logger.info(f"    • Nitrogen (N): {n:.1f} ppm → {'DEFICIENT ⚠️' if n < 80 else 'ADEQUATE ✓'} (threshold: 80)")
+        logger.info(f"    • Phosphorus (P): {p:.1f} ppm → {'DEFICIENT ⚠️' if p < 40 else 'ADEQUATE ✓'} (threshold: 40)")
+        logger.info(f"    • Potassium (K): {k:.1f} ppm → {'DEFICIENT ⚠️' if k < 80 else 'ADEQUATE ✓'} (threshold: 80)")
+        
+        logger.info(f"\n  Rule-Based Recommendation:")
+        logger.info(f"    • Rule suggests: {rule_fert}")
+        logger.info(f"    • Model suggests: {fert_label}")
+        logger.info(f"    • Match: {'YES ✓' if rule_fert == fert_label else 'NO ⚠️'}")
+        
         if is_fert_low:
-            rule_fert = self._fertilizer_rule_pick(features)
+            logger.info(f"\n  ⚠️  LOW CONFIDENCE MODE ACTIVE")
+            logger.info(f"    • Model confidence ({fert_model_conf*100:.1f}%) < threshold ({LOW_CONF_FERT*100:.0f}%)")
+            
             if rule_fert != fert_label:
+                logger.warning(f"    • Model and rules disagree - Using rule recommendation")
                 warnings.append({
                     "type": "LOW_FERTILIZER_CONFIDENCE",
                     "message": f"Low fertilizer model confidence ({int(fert_model_conf*100)}%). Nutrient-rule suggests {rule_fert}."
                 })
                 final_fert = rule_fert
             else:
+                logger.info(f"    • Model and rules agree - Keeping model recommendation")
                 warnings.append({
                     "type": "LOW_FERTILIZER_CONFIDENCE",
                     "message": f"Low fertilizer model confidence ({int(fert_model_conf*100)}%). Recommendation kept but treat as low certainty."
                 })
-
+        else:
+            logger.info(f"\n  ✓ HIGH CONFIDENCE MODE")
+            logger.info(f"    • Model confidence ({fert_model_conf*100:.1f}%) ≥ threshold ({LOW_CONF_FERT*100:.0f}%)")
+            logger.info(f"    • Using model recommendation: {final_fert}")
+        
+        logger.info(f"\n  Final Fertilizer: {final_fert}")
+        
+        # ═══════════════════════════════════════════════════════════════════════════════
+        # PHASE 7: FERTILIZER METADATA & COSTING
+        # ═══════════════════════════════════════════════════════════════════════════════
+        logger.info("\n[PHASE 7] FERTILIZER METADATA & COSTING")
+        logger.info("-" * 100)
+        
         fert_meta = self.get_fertilizer_metadata(final_fert, request.field.landSize)
-
-        # Fertilizer “suitability” can be simple for now:
-        fert_rule_ok = 1.0 if final_fert == self._fertilizer_rule_pick(features) else 0.6
+        land_size = request.field.landSize
+        
+        logger.info(f"  Fertilizer: {final_fert}")
+        logger.info(f"  Land Size: {land_size} acres")
+        logger.info(f"  Components: {', '.join(fert_meta['components'])}")
+        logger.info(f"  Quantity Required: {fert_meta['quantityPerAcre']}")
+        logger.info(f"  Estimated Cost: LKR {fert_meta['estimatedCost']:,}")
+        logger.info(f"  Environmental Impact: {fert_meta['environmentalImpact'].upper()}")
+        logger.info(f"  Application Schedule:")
+        for schedule in fert_meta['applicationSchedule']:
+            logger.info(f"    • Week {schedule['week']}: {schedule['action']}")
+        
+        # Fertilizer suitability
+        fert_rule_ok = 1.0 if final_fert == rule_fert else 0.6
         fert_suitability = self._hybrid_suitability(fert_model_conf, fert_rule_ok, is_fert_low)
-
+        
+        logger.info(f"\n  Suitability Calculation:")
+        logger.info(f"    • Model Confidence: {fert_model_conf:.4f}")
+        logger.info(f"    • Rule Alignment: {fert_rule_ok:.4f} ({'Perfect' if fert_rule_ok == 1.0 else 'Partial'})")
+        logger.info(f"    • Final Suitability: {fert_suitability:.4f} ({fert_suitability*100:.2f}%)")
+        
+        # Build fertilizer block
         fertilizer_block = {
             'label': final_fert,
-            'confidence': safe_round(fert_suitability, 2),         # optional if UI uses it later
+            'confidence': safe_round(fert_suitability, 2),
             'modelConfidence': safe_round(fert_model_conf, 3),
             'suitabilityScore': safe_round(fert_suitability, 2),
             'type': final_fert,
@@ -524,15 +818,47 @@ class Predictor:
                 for x in fert_top_k_model[:5]
             ]
         }
-
-        # Get remark
+        
+        logger.info(f"\n✓ Fertilizer block prepared for response")
+        
+        # ═══════════════════════════════════════════════════════════════════════════════
+        # PHASE 8: REMARK RETRIEVAL
+        # ═══════════════════════════════════════════════════════════════════════════════
+        logger.info("\n[PHASE 8] REMARK RETRIEVAL")
+        logger.info("-" * 100)
+        
         remark = self.remark_map.get(final_fert, "")
-
-        # Generate insights
+        logger.info(f"  Fertilizer Type: {final_fert}")
+        logger.info(f"  Associated Remark: {remark if remark else '(No specific remark available)'}")
+        
+        # ═══════════════════════════════════════════════════════════════════════════════
+        # PHASE 9: INSIGHTS GENERATION
+        # ═══════════════════════════════════════════════════════════════════════════════
+        logger.info("\n[PHASE 9] INSIGHTS GENERATION")
+        logger.info("-" * 100)
+        
         feature_importance = self.generate_feature_importance(features_df)
+        logger.info(f"  Generated {len(feature_importance)} feature importance items")
+        for item in feature_importance:
+            logger.info(f"    • {item['feature']:25s}: {item['impact']:.2f} - {item['explanation']}")
+        
         risk_factors = self.generate_risk_factors(features_df)
+        logger.info(f"\n  Identified {len(risk_factors)} risk factors:")
+        for item in risk_factors:
+            logger.info(f"    • Risk: {item['factor']}")
+            logger.info(f"      Mitigation: {item['mitigation']}")
+        
         alternative_crops = self.generate_alternative_crops(crop_block["top_k"])
-
+        logger.info(f"\n  Generated {len(alternative_crops)} alternative crops:")
+        for item in alternative_crops:
+            logger.info(f"    • {item['crop']:25s}: {item['confidence']:3d}% confidence - {item['reason']}")
+        
+        # ═══════════════════════════════════════════════════════════════════════════════
+        # PHASE 10: RESPONSE ASSEMBLY
+        # ═══════════════════════════════════════════════════════════════════════════════
+        logger.info("\n[PHASE 10] RESPONSE ASSEMBLY")
+        logger.info("-" * 100)
+        
         response = {
             'success': True,
             'crop': crop_block,
@@ -541,13 +867,56 @@ class Predictor:
             'featureImportance': feature_importance,
             'riskFactors': risk_factors,
             'alternativeCrops': alternative_crops,
-            'warnings': warnings,  # NEW: frontend can show as alerts
+            'warnings': warnings,
             'meta': {
                 'model_version': self.metadata.get('model_version', 'unknown'),
                 'timestamp': get_timestamp()
             }
         }
-
+        
+        logger.info(f"✓ Response assembled successfully")
+        logger.info(f"  • Warnings/Alerts: {len(warnings)}")
+        if warnings:
+            for warning in warnings:
+                logger.warning(f"    - [{warning['type']}] {warning['message']}")
+        
+        logger.info(f"  • Feature Importance Items: {len(feature_importance)}")
+        logger.info(f"  • Risk Factors: {len(risk_factors)}")
+        logger.info(f"  • Alternative Crops: {len(alternative_crops)}")
+        
+        # ═══════════════════════════════════════════════════════════════════════════════
+        # FINAL SUMMARY
+        # ═══════════════════════════════════════════════════════════════════════════════
+        logger.info("\n" + "=" * 100)
+        logger.info("█" * 100)
+        logger.info("PREDICTION COMPLETE - SUMMARY")
+        logger.info("█" * 100)
+        logger.info("=" * 100)
+        
+        logger.info(f"\n📊 FINAL RECOMMENDATIONS:")
+        logger.info(f"\n  🌾 CROP RECOMMENDATION")
+        logger.info(f"     Crop: {crop_block['label']}")
+        logger.info(f"     Suitability: {crop_block['confidence']*100:.1f}%")
+        logger.info(f"     Model Confidence: {crop_block['modelConfidence']*100:.1f}%")
+        logger.info(f"     Expected Yield: {crop_block['expectedYieldMin']}-{crop_block['expectedYieldMax']} {crop_block['yieldUnit']}")
+        
+        logger.info(f"\n  🧪 FERTILIZER RECOMMENDATION")
+        logger.info(f"     Fertilizer: {fertilizer_block['label']}")
+        logger.info(f"     Suitability: {fertilizer_block['confidence']*100:.1f}%")
+        logger.info(f"     Components: {', '.join(fertilizer_block['components'])}")
+        logger.info(f"     Quantity: {fertilizer_block['quantityPerAcre']}")
+        logger.info(f"     Cost: LKR {fertilizer_block['estimatedCost']:,}")
+        
+        logger.info(f"\n  ⚙️  METADATA")
+        logger.info(f"     Timestamp: {response['meta']['timestamp']}")
+        logger.info(f"     Model Version: {response['meta']['model_version']}")
+        
+        logger.info("\n" + "=" * 100)
+        logger.info("█" * 100)
+        logger.info("END OF PREDICTION")
+        logger.info("█" * 100)
+        logger.info("=" * 100 + "\n")
+        
         return response
 
 

@@ -41,21 +41,7 @@ class Normalizer:
     
     @staticmethod
     def normalize_soil_type(soil_type: str) -> str:
-        """
-        Normalize soil type from frontend format to dataset format.
-        
-        Frontend: "Loamy", "Peaty", etc.
-        Dataset: "Loamy Soil", "Peaty Soil", etc.
-        
-        Args:
-            soil_type: Raw soil type from frontend
-            
-        Returns:
-            Normalized soil type
-            
-        Raises:
-            ValueError: If soil type is unknown
-        """
+
         normalized = soil_type.strip().lower()
         
         if normalized in SOIL_TYPE_MAPPING:

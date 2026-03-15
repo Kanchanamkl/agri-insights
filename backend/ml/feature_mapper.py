@@ -90,4 +90,5 @@ class FeatureMapper:
 
         df = pd.DataFrame([features], columns=FeatureMapper.FEATURE_NAMES)
         logger.info(f"Extracted 13 features for model: {list(features.keys())}")
+        logger.info(f"Feature values: {features}")
         return df
