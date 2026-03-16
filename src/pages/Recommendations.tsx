@@ -68,6 +68,11 @@ export default function Recommendations() {
 
   const recommendation = state.recommendations.find(r => r.id === id);
   
+  const formatCurrency = (value: unknown) => {
+    const n = typeof value === 'number' ? value : Number(value);
+    return Number.isFinite(n) ? n.toLocaleString() : 'N/A';
+  };
+
   if (!recommendation) {
     return (
       <div className="container py-20 text-center">
@@ -86,7 +91,9 @@ export default function Recommendations() {
 
   console.log('Recommendation Object:', recommendation);
 
-  // UPDATED: Check for metadata using the new backend field structure
+  const soil = inputData?.soilParameters;
+  const env = inputData?.environmentalFactors;
+
   const showCropExtras = !!crop.expectedYieldMin || !!crop.marketPriceTrend;
 
   const handleShare = () => {
@@ -105,7 +112,6 @@ export default function Recommendations() {
   const handleDownload = () => {
     const reportData = {
       generatedAt: recommendation.timestamp.toLocaleString(),
-      region: inputData.field.region,
       cropRecommendation: crop,
       fertilizerPlan: fertilizer,
       featureImportance,
@@ -138,7 +144,7 @@ export default function Recommendations() {
               Your Recommendation
             </h1>
             <p className="text-muted-foreground mt-1">
-              Based on your field conditions in {inputData.field.region}
+              Based on your field conditions
             </p>
           </div>
           <div className="flex gap-2">
@@ -182,7 +188,6 @@ export default function Recommendations() {
                     {crop.icon || '🌱'}
                   </div>
                   <div>
-                    {/* UPDATED: Use crop.label */}
                     <CardTitle className="text-xl capitalize">{crop.crop}</CardTitle>
                     <CardDescription>Recommended Crop</CardDescription>
                   </div>
@@ -284,11 +289,13 @@ export default function Recommendations() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="p-3 rounded-lg bg-muted/50">
                   <p className="text-xs text-muted-foreground">Total Quantity</p>
-                  <p className="font-semibold text-sm">{fertilizer.quantityPerAcre}</p>
+                  <p className="font-semibold text-sm">{fertilizer.quantityPerAcre ?? 'N/A'}</p>
                 </div>
                 <div className="p-3 rounded-lg bg-muted/50">
                   <p className="text-xs text-muted-foreground">Est. Cost</p>
-                  <p className="font-semibold text-sm">{fertilizer.estimatedCost.toLocaleString()} {fertilizer.costUnit}</p>
+                  <p className="font-semibold text-sm">
+                    {formatCurrency(fertilizer.estimatedCost)} {fertilizer.costUnit ?? ''}
+                  </p>
                 </div>
               </div>
             </CardContent>

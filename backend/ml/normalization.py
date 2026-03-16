@@ -36,6 +36,21 @@ MOISTURE_MAPPING = {
 
 VALID_SOIL_TYPES = list(set(SOIL_TYPE_MAPPING.values()))
 
+FEATURE_COLUMNS = [
+    "Temperature",
+    "Moisture",
+    "Rainfall",
+    "PH",
+    "Nitrogen",
+    "Phosphorous",
+    "Potassium",
+    "Carbon",
+    "Humidity",
+    "NPK_Sum",
+    "PH_Stress",
+    "Rain_Temp_Balance",
+]
+
 class Normalizer:
     """Normalize frontend inputs to match training dataset format"""
     
@@ -137,3 +152,14 @@ class Normalizer:
             )
         
         return normalized
+
+def fit_normalizer(X):
+    """
+    X must contain only FEATURE_COLUMNS in the same order used during training.
+    """
+    X = X[FEATURE_COLUMNS].copy()
+    # ...existing scaler fit...
+
+def transform_features(X, scaler):
+    X = X[FEATURE_COLUMNS].copy()
+    # ...existing scaler transform...

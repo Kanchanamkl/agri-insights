@@ -53,16 +53,7 @@ export function convertApiResponseToRecommendation(
       growingSeasonEnd: apiResponse.crop.growingSeasonEnd,
       icon: apiResponse.crop.icon,
     },
-    fertilizer: {
-      type: apiResponse.fertilizer.label || apiResponse.fertilizer.type,
-      components: apiResponse.fertilizer.components,
-      quantityPerAcre: apiResponse.fertilizer.quantityPerAcre,
-      applicationSchedule: apiResponse.fertilizer.applicationSchedule,
-      estimatedCost: apiResponse.fertilizer.estimatedCost,
-      costUnit: apiResponse.fertilizer.costUnit,
-      confidence: Math.round(apiResponse.fertilizer.confidence * 100),
-      environmentalImpact: apiResponse.fertilizer.environmentalImpact,
-    },
+    fertilizer: formatFertilizerRecommendation(apiResponse.fertilizer),
     featureImportance: apiResponse.featureImportance,
     alternativeCrops: apiResponse.alternativeCrops.map((alt: any) => ({
       crop: alt.crop,
@@ -70,6 +61,20 @@ export function convertApiResponseToRecommendation(
       reason: alt.reason,
     })),
     riskFactors: apiResponse.riskFactors,
+  };
+}
+
+export function formatFertilizerRecommendation(fertilizer: any) {
+  // Field Context removed => no totals
+  return {
+    type: fertilizer.label || fertilizer.type,
+    components: fertilizer.components,
+    quantityPerAcre: fertilizer.quantityPerAcre,
+    applicationSchedule: fertilizer.applicationSchedule,
+    baseRatePerAcre: fertilizer?.baseRatePerAcre, // number (kg/acre)
+    pricePerKg: fertilizer?.pricePerKg, // number
+    confidence: Math.round(fertilizer.confidence * 100),
+    environmentalImpact: fertilizer.environmentalImpact,
   };
 }
 

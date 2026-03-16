@@ -33,66 +33,24 @@ export const checkBackendHealth = checkHealth;
 /**
  * Get crop and fertilizer prediction from ML backend
  */
-export async function getPrediction(formData: FormData): Promise<any> {
-  try {
-    // Transform frontend format to backend expected format
-    const requestBody = {
-      soil: {
-        nitrogen: formData.soil.nitrogen,
-        phosphorus: formData.soil.phosphorus,
-        potassium: formData.soil.potassium,
-        carbon: formData.soil.carbon,
-        pH: formData.soil.pH,
-        soilType: formData.soil.soilType,
-        moisture: formData.soil.moisture,
-      },
-      environmental: {
-        rainfall: formData.environmental.rainfall,
-        temperature: formData.environmental.temperature,
-        humidity: formData.environmental.humidity,
-      },
-      field: {
-        region: formData.field.region,
-        landSize: formData.field.landSize,
-        irrigationType: formData.field.irrigationType,
-        previousCrop: formData.field.previousCrop,
-      },
-    };
+export async function getPrediction(payload: any): Promise<any> {
+  // payload is already in the backend format:
+  // { soilParameters: {...}, environmentalFactors: {...} }
 
-    console.log('Sending request to backend:', requestBody);
+  const response = await fetch(`${API_BASE_URL}/predict`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
 
-    const response = await fetch(`${API_BASE_URL}/predict`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(
-        errorData.detail || 
-        errorData.message || 
-        `Backend error: ${response.status} ${response.statusText}`
-      );
-    }
-
-    const data = await response.json();
-    console.log('Received response from backend:', data);
-
-    return data;
-  } catch (error) {
-    console.error('Prediction API error:', error);
-    
-    if (error instanceof TypeError && error.message.includes('fetch')) {
-      throw new Error(
-        'Cannot connect to ML backend. Please ensure the backend server is running on ' + API_BASE_URL
-      );
-    }
-    
-    throw error;
+  if (!response.ok) {
+    const text = await response.text().catch(() => '');
+    throw new Error(`Prediction request failed: ${response.status} ${text}`);
   }
+
+  return response.json();
 }
 
 /**

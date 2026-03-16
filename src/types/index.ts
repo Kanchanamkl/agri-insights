@@ -14,37 +14,23 @@ export interface EnvironmentalData {
   humidity: number; // 0-100 %
 }
 
-// Field Context
-export interface FieldData {
-  previousCrop: string;
-  irrigationType: 'rainfed' | 'drip' | 'sprinkler' | 'flood';
-  landSize: number; // acres
-  region: string;
-}
-
 // Complete Form Data
-export interface FormData {
-  soil: {
+export type FormData = {
+  soilParameters: {
     nitrogen: number;
-    phosphorus: number;
+    phosphorous: number;
     potassium: number;
-    carbon?: number; // Optional, backend will use default if not provided
-    pH: number;
-    soilType: string; // REQUIRED - must be present
-    moisture: 'low' | 'medium' | 'high';
+    ph: number;
+    carbon: number;
+    moisture: number;
+    soil: string;
   };
-  environmental: {
-    rainfall: number;
+  environmentalFactors: {
     temperature: number;
+    rainfall: number;
     humidity: number;
   };
-  field: {
-    previousCrop: string;
-    irrigationType: 'rainfed' | 'drip' | 'sprinkler' | 'flood';
-    landSize: number;
-    region: string;
-  };
-}
+};
 
 // Feature Importance for explainability
 export interface FeatureImportance {
@@ -98,58 +84,31 @@ export interface DashboardStats {
   costUnit: string;
 }
 
-// Region options for Sri Lanka
-export const REGIONS = [
-  'Western',
-  'Central',
-  'Southern',
-  'Northern',
-  'Eastern',
-  'North Western',
-  'North Central',
-  'Uva',
-  'Sabaragamuwa',
-] as const;
-
-// Previous crops
-export const PREVIOUS_CROPS = [
-  'Rice',
-  'Maize',
-  'Wheat',
-  'Sugarcane',
-  'Cotton',
-  'Groundnut',
-  'Soybean',
-  'Vegetables',
-  'Tea',
-  'Coconut',
-  'Rubber',
-  'Pepper',
-  'None (Fallow)',
-] as const;
-
-// Irrigation types
-export const IRRIGATION_TYPES = [
-  { value: 'rainfed', label: 'Rainfed (Natural)' },
-  { value: 'drip', label: 'Drip Irrigation' },
-  { value: 'sprinkler', label: 'Sprinkler System' },
-  { value: 'flood', label: 'Flood Irrigation' },
-] as const;
-
-// Moisture levels
-export const MOISTURE_LEVELS = [
-  { value: 'low', label: 'Low (Dry)' },
-  { value: 'medium', label: 'Medium (Moist)' },
-  { value: 'high', label: 'High (Wet)' },
-] as const;
-
 // Soil types for Sri Lanka
 export const SOIL_TYPES = [
-  'Loamy',
-  'Sandy',
-  'Clay',
-  'Black',
-  'Red',
-  'Laterite',
-  'Alluvial',
+  'Loamy Soil',
+  'Peaty Soil',
+  'Acidic Soil',
+  'Neutral Soil',
+  'Alkaline Soil',
+] as const;
+
+// Optional compatibility only (remove once all imports are cleaned up)
+export const MOISTURE_LEVELS = [
+  { value: 0.2, label: "Low (Dry)" },
+  { value: 0.5, label: "Medium (Moist)" },
+  { value: 0.8, label: "High (Wet)" },
+] as const;
+
+// Compatibility export (prefer removing imports instead)
+export const REGIONS = [
+  "Western",
+  "Central",
+  "Southern",
+  "Northern",
+  "Eastern",
+  "North Western",
+  "North Central",
+  "Uva",
+  "Sabaragamuwa",
 ] as const;

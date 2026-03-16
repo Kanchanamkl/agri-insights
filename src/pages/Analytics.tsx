@@ -27,7 +27,6 @@ import {
   AlertCircle,
   CheckCircle2
 } from 'lucide-react';
-import { REGIONS } from '@/types';
 
 const COLORS = ['#10B981', '#0EA5E9', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#6366F1', '#14B8A6', '#F97316'];
 
@@ -41,12 +40,6 @@ const usageData = [
   { name: 'Sat', users: 145 },
   { name: 'Sun', users: 110 },
 ];
-
-const regionData = REGIONS.map((region, i) => ({
-  name: region,
-  recommendations: Math.floor(Math.random() * 500) + 100,
-  fill: COLORS[i % COLORS.length],
-}));
 
 const cropPopularity = [
   { name: 'Rice', value: 35 },
@@ -265,40 +258,6 @@ export default function Analytics() {
                   </Pie>
                   <Tooltip />
                 </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Regional Distribution */}
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Map className="h-5 w-5 text-primary" />
-              Recommendations by Region
-            </CardTitle>
-            <CardDescription>Geographic distribution across Sri Lanka</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={regionData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis type="number" className="text-xs" />
-                  <YAxis dataKey="name" type="category" className="text-xs" width={100} />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px'
-                    }}
-                  />
-                  <Bar dataKey="recommendations" radius={[0, 4, 4, 0]}>
-                    {regionData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Bar>
-                </BarChart>
               </ResponsiveContainer>
             </div>
           </CardContent>

@@ -3,6 +3,7 @@ import json
 import os
 import numpy as np
 from typing import Dict, Any, List, Tuple
+from pathlib import Path
 
 from config import config
 from ml.feature_mapper import FeatureMapper, PredictionRequest
@@ -157,6 +158,11 @@ CROP_RULES = {
     "Ground Nut":   {"ph": (5.5, 7.0), "rain": (50, 125),  "temp": (22, 32), "moist": (40, 75),  "hum": (50, 75)},
 }
 
+ARTIFACTS_DIR = Path(__file__).resolve().parent / "artifacts"
+CROP_MODEL_PATH = ARTIFACTS_DIR / "crop_model.joblib"
+FERT_MODEL_PATH = ARTIFACTS_DIR / "fert_model.joblib"
+REMARK_MAP_PATH = ARTIFACTS_DIR / "remark_map.joblib"
+
 class Predictor:
     def __init__(self):
         self.crop_model = None
@@ -242,9 +248,18 @@ class Predictor:
     def load_models(self):
         """Load trained models and metadata"""
         try:
-            if not os.path.exists(config.CROP_MODEL_PATH):
-                logger.warning("Models not found. Please run training first.")
-                return False
+            paths = {
+                "crop_model": config.CROP_MODEL_PATH,
+                "fertilizer_model": config.FERTILIZER_MODEL_PATH,
+                "remark_map": config.REMARK_MAP_PATH,
+            }
+
+            missing = [k for k, p in paths.items() if not os.path.exists(p)]
+            if missing:
+                logger.error(f"Missing model artifacts: {missing}")
+                logger.error(f"Expected paths: {paths}")
+                self.models_loaded = False
+                return
 
             logger.info("Loading models...")
             self.crop_model = joblib.load(config.CROP_MODEL_PATH)
@@ -386,7 +401,11 @@ class Predictor:
         }
         return CROP_METADATA.get(crop, default)
 
-    def get_fertilizer_metadata(self, fertilizer: str, land_size: float) -> Dict:
+    def get_fertilizer_metadata(self, fertilizer: str) -> Dict:
+        """
+        Field Context removed => no land_size-based quantities/costs.
+        Return base guidance only.
+        """
         default = {
             'components': ['Balanced nutrients'],
             'baseRatePerAcre': 100,
@@ -395,13 +414,10 @@ class Predictor:
         }
         meta = FERTILIZER_METADATA.get(fertilizer, default)
 
-        total_quantity = int(meta['baseRatePerAcre'] * land_size)
-        estimated_cost = total_quantity * meta['pricePerKg']
-
         return {
             'components': meta['components'],
-            'quantityPerAcre': f"{total_quantity} kg total ({meta['baseRatePerAcre']} kg/acre)",
-            'estimatedCost': int(estimated_cost),
+            'baseRatePerAcre': meta['baseRatePerAcre'],
+            'pricePerKg': meta['pricePerKg'],
             'costUnit': 'LKR',
             'environmentalImpact': meta['environmentalImpact'],
             'applicationSchedule': self.generate_application_schedule()
@@ -770,24 +786,15 @@ class Predictor:
         logger.info(f"\n  Final Fertilizer: {final_fert}")
         
         # ═══════════════════════════════════════════════════════════════════════════════
-        # PHASE 7: FERTILIZER METADATA & COSTING
+        # PHASE 7: FERTILIZER METADATA (NO LAND SIZE)
         # ═══════════════════════════════════════════════════════════════════════════════
-        logger.info("\n[PHASE 7] FERTILIZER METADATA & COSTING")
-        logger.info("-" * 100)
-        
-        fert_meta = self.get_fertilizer_metadata(final_fert, request.field.landSize)
-        land_size = request.field.landSize
-        
+        fert_meta = self.get_fertilizer_metadata(final_fert)
+
         logger.info(f"  Fertilizer: {final_fert}")
-        logger.info(f"  Land Size: {land_size} acres")
         logger.info(f"  Components: {', '.join(fert_meta['components'])}")
-        logger.info(f"  Quantity Required: {fert_meta['quantityPerAcre']}")
-        logger.info(f"  Estimated Cost: LKR {fert_meta['estimatedCost']:,}")
-        logger.info(f"  Environmental Impact: {fert_meta['environmentalImpact'].upper()}")
-        logger.info(f"  Application Schedule:")
-        for schedule in fert_meta['applicationSchedule']:
-            logger.info(f"    • Week {schedule['week']}: {schedule['action']}")
-        
+        logger.info(f"  Base Rate: {fert_meta['baseRatePerAcre']} kg/acre")
+        logger.info(f"  Price: LKR {fert_meta['pricePerKg']} per kg")
+
         # Fertilizer suitability
         fert_rule_ok = 1.0 if final_fert == rule_fert else 0.6
         fert_suitability = self._hybrid_suitability(fert_model_conf, fert_rule_ok, is_fert_low)
@@ -805,16 +812,13 @@ class Predictor:
             'suitabilityScore': safe_round(fert_suitability, 2),
             'type': final_fert,
             'components': fert_meta['components'],
-            'quantityPerAcre': fert_meta['quantityPerAcre'],
-            'estimatedCost': fert_meta['estimatedCost'],
+            'baseRatePerAcre': fert_meta['baseRatePerAcre'],
+            'pricePerKg': fert_meta['pricePerKg'],
             'costUnit': fert_meta['costUnit'],
             'environmentalImpact': fert_meta['environmentalImpact'],
             'applicationSchedule': fert_meta['applicationSchedule'],
             'top_k': [
-                {
-                    "label": x["label"],
-                    "prob": safe_round(float(x["prob"]), 3)
-                }
+                {"label": x["label"], "prob": safe_round(float(x["prob"]), 3)}
                 for x in fert_top_k_model[:5]
             ]
         }
@@ -904,8 +908,8 @@ class Predictor:
         logger.info(f"     Fertilizer: {fertilizer_block['label']}")
         logger.info(f"     Suitability: {fertilizer_block['confidence']*100:.1f}%")
         logger.info(f"     Components: {', '.join(fertilizer_block['components'])}")
-        logger.info(f"     Quantity: {fertilizer_block['quantityPerAcre']}")
-        logger.info(f"     Cost: LKR {fertilizer_block['estimatedCost']:,}")
+        logger.info(f"     Quantity: {fertilizer_block['baseRatePerAcre']} kg/acre")
+        logger.info(f"     Cost: LKR {fertilizer_block['pricePerKg']} per kg")
         
         logger.info(f"\n  ⚙️  METADATA")
         logger.info(f"     Timestamp: {response['meta']['timestamp']}")

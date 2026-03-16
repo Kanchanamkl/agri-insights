@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { fetchRecommendation} from '@/lib/recommendationEngine';
 import { checkBackendHealth } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
-import { REGIONS, PREVIOUS_CROPS, IRRIGATION_TYPES, MOISTURE_LEVELS, SOIL_TYPES } from '@/types';
+import { REGIONS, PREVIOUS_CROPS, IRRIGATION_TYPES, SOIL_TYPES } from '@/types';
 import { 
   ArrowLeft, 
   ArrowRight, 
@@ -37,12 +37,6 @@ const stepInfo = [
     title: 'Environmental Data', 
     description: 'Provide weather and climate information',
     icon: CloudRain
-  },
-  { 
-    step: 3, 
-    title: 'Field Context', 
-    description: 'Tell us about your land and farming history',
-    icon: MapPin
   },
 ];
 
@@ -154,7 +148,7 @@ export default function InputForm() {
   const [backendStatus, setBackendStatus] = useState<'unknown' | 'healthy' | 'unhealthy'>('unknown');
 
   const { formData, currentStep } = state;
-  const { soil, environmental, field } = formData;
+  const { soil, environmental } = formData;
 
   useEffect(() => {
     const checkHealth = async () => {
@@ -200,12 +194,6 @@ export default function InputForm() {
       if (environmental.humidity < 0 || environmental.humidity > 100) newErrors.humidity = 'Must be 0-100 %';
     }
 
-    if (step === 3) {
-      if (!field.previousCrop) newErrors.previousCrop = 'Please select a crop';
-      if (!field.region) newErrors.region = 'Please select a region';
-      if (field.landSize <= 0) newErrors.landSize = 'Must be greater than 0';
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -220,15 +208,34 @@ export default function InputForm() {
     dispatch({ type: 'SET_STEP', payload: currentStep - 1 });
   };
 
+  const payload = useMemo(() => {
+    return {
+      soilParameters: {
+        nitrogen: Number(soil.nitrogen),
+        phosphorous: Number(soil.phosphorus),
+        potassium: Number(soil.potassium),
+        ph: Number(soil.pH),
+        carbon: Number(soil.carbon),
+        moisture: Number(soil.moisture),
+        soil: soil.soilType,
+      },
+      environmentalFactors: {
+        temperature: Number(environmental.temperature),
+        rainfall: Number(environmental.rainfall),
+        humidity: Number(environmental.humidity),
+      },
+    };
+  }, [soil, environmental]);
+
   const handleSubmit = async () => {
-    if (!validateStep(3)) return;
+    if (!validateStep(2)) return;
   
     setIsSubmitting(true);
     dispatch({ type: 'SET_LOADING', payload: true });
     
     try {
       // Call the ML backend
-      const recommendation = await fetchRecommendation(formData);
+      const recommendation = await fetchRecommendation(payload);
       
       dispatch({ type: 'ADD_RECOMMENDATION', payload: recommendation });
       dispatch({ type: 'SET_LOADING', payload: false });
@@ -330,7 +337,6 @@ export default function InputForm() {
             <CardTitle className="flex items-center gap-2">
               {currentStep === 1 && <Beaker className="h-5 w-5 text-primary" />}
               {currentStep === 2 && <CloudRain className="h-5 w-5 text-primary" />}
-              {currentStep === 3 && <MapPin className="h-5 w-5 text-primary" />}
               {stepInfo[currentStep - 1].title}
             </CardTitle>
             <CardDescription>{stepInfo[currentStep - 1].description}</CardDescription>
@@ -425,21 +431,19 @@ export default function InputForm() {
                       </TooltipContent>
                     </Tooltip>
                   </div>
-                  <Select
-                    value={soil.moisture}
-                    onValueChange={(v) => dispatch({ type: 'SET_SOIL_DATA', payload: { moisture: v as 'low' | 'medium' | 'high' } })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {MOISTURE_LEVELS.map((level) => (
-                        <SelectItem key={level.value} value={level.value}>
-                          {level.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Input
+                    type="number"
+                    step="0.0001"
+                    min={0}
+                    max={1}
+                    name="moisture"
+                    value={soil.moisture ?? ""}
+                    onChange={(e) =>
+                      dispatch({ type: 'SET_SOIL_DATA', payload: { moisture: e.target.value === "" ? (undefined as any) : Number(e.target.value) } })
+                    }
+                    placeholder="e.g., 0.72"
+                    required
+                  />
                 </div>
               </>
             )}
@@ -479,132 +483,6 @@ export default function InputForm() {
               </>
             )}
 
-            {/* Step 3: Field Context */}
-            {currentStep === 3 && (
-              <>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Label>Previous Crop</Label>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Crop grown in the last season. Helps with crop rotation recommendations.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                  <Select
-                    value={field.previousCrop}
-                    onValueChange={(v) => dispatch({ type: 'SET_FIELD_DATA', payload: { previousCrop: v } })}
-                  >
-                    <SelectTrigger className={errors.previousCrop ? 'border-destructive' : ''}>
-                      <SelectValue placeholder="Select previous crop..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PREVIOUS_CROPS.map((crop) => (
-                        <SelectItem key={crop} value={crop}>
-                          {crop}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errors.previousCrop && (
-                    <p className="text-sm text-destructive">{errors.previousCrop}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Label>Irrigation Type</Label>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Your primary irrigation method. Affects water management recommendations.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                  <Select
-                    value={field.irrigationType}
-                    onValueChange={(v) => dispatch({ type: 'SET_FIELD_DATA', payload: { irrigationType: v as any } })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {IRRIGATION_TYPES.map((type) => (
-                        <SelectItem key={type.value} value={type.value}>
-                          {type.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Label>Land Size</Label>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Total cultivable area in acres. Used for quantity calculations.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      value={field.landSize}
-                      onChange={(e) => dispatch({ type: 'SET_FIELD_DATA', payload: { landSize: Number(e.target.value) } })}
-                      min={0.1}
-                      step={0.1}
-                      className={errors.landSize ? 'border-destructive' : ''}
-                    />
-                    <span className="text-sm text-muted-foreground">acres</span>
-                  </div>
-                  {errors.landSize && (
-                    <p className="text-sm text-destructive">{errors.landSize}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Label>Region</Label>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Your province in Sri Lanka. Affects regional crop recommendations.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                  <Select
-                    value={field.region}
-                    onValueChange={(v) => dispatch({ type: 'SET_FIELD_DATA', payload: { region: v } })}
-                  >
-                    <SelectTrigger className={errors.region ? 'border-destructive' : ''}>
-                      <SelectValue placeholder="Select region..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {REGIONS.map((region) => (
-                        <SelectItem key={region} value={region}>
-                          {region}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errors.region && (
-                    <p className="text-sm text-destructive">{errors.region}</p>
-                  )}
-                </div>
-              </>
-            )}
-
             {/* Navigation Buttons */}
             <div className="flex justify-between pt-4">
               <Button
@@ -616,7 +494,7 @@ export default function InputForm() {
                 Back
               </Button>
               
-              {currentStep < 3 ? (
+              {currentStep < 2 ? (
                 <Button onClick={handleNext}>
                   Next
                   <ArrowRight className="h-4 w-4 ml-2" />

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pandas as pd
 import numpy as np
 import joblib
@@ -17,7 +19,81 @@ from utils.helpers import get_logger
 from imblearn.over_sampling import SMOTE
 from imblearn.pipeline import Pipeline as ImbPipeline
 
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, Tuple
+
 logger = get_logger(__name__)
+
+FEATURE_COLUMNS = [
+    "Temperature",
+    "Moisture",
+    "Rainfall",
+    "PH",
+    "Nitrogen",
+    "Phosphorous",
+    "Potassium",
+    "Carbon",
+    "Humidity",
+    "NPK_Sum",
+    "PH_Stress",
+    "Rain_Temp_Balance",
+    "Soil",  # <-- ADD: training must include Soil because inference provides it and model expects it
+]
+
+TARGET_CROP = "Crop"
+TARGET_FERT = "Fertilizer"
+TARGET_REMARK = "Remark"
+
+NUMERIC_FEATURES = [
+    "Temperature",
+    "Moisture",
+    "Rainfall",
+    "PH",
+    "Nitrogen",
+    "Phosphorous",
+    "Potassium",
+    "Carbon",
+    "Humidity",
+    "NPK_Sum",
+    "PH_Stress",
+    "Rain_Temp_Balance",
+]
+CATEGORICAL_FEATURES = ["Soil"]
+
+DEFAULT_DATASET = Path(__file__).resolve().parents[1] / "data" / "enhanced_crop_fertlizer_dataset.csv"
+DEFAULT_OUT_DIR = Path(__file__).resolve().parents[0] / "artifacts"  # backend/ml/artifacts/
+
+@dataclass(frozen=True)
+class TrainOutputs:
+    crop_model_path: Path
+    fert_model_path: Path
+    remark_map_path: Path
+    feature_names_path: Path
+
+def load_dataset(csv_path: str):
+    import pandas as pd
+    df = pd.read_csv(csv_path)
+
+    # Drop anything not needed; hard-enforce training schema
+    missing = [c for c in FEATURE_COLUMNS + [TARGET_CROP, TARGET_FERT, TARGET_REMARK] if c not in df.columns]
+    if missing:
+        raise ValueError(f"Dataset missing required columns: {missing}")
+
+    X = df[FEATURE_COLUMNS].copy()
+    y_crop = df[TARGET_CROP].copy()
+    y_fert = df[TARGET_FERT].copy()
+
+    # remark_map purely by fertilizer label (no Field Context)
+    remark_map = (
+        df[[TARGET_FERT, TARGET_REMARK]]
+        .dropna()
+        .drop_duplicates(subset=[TARGET_FERT])
+        .set_index(TARGET_FERT)[TARGET_REMARK]
+        .to_dict()
+    )
+
+    return X, y_crop, y_fert, remark_map
 
 class ModelTrainer:
     def __init__(self):
@@ -30,126 +106,125 @@ class ModelTrainer:
     def load_data(self):
         """Load, validate, and aggressively clean dataset"""
         logger.info(f"Loading dataset from {config.DATASET_PATH}")
-        df = pd.read_csv(config.DATASET_PATH)
+        self.df = pd.read_csv(config.DATASET_PATH)
         
-        required_cols = [
-            'Temperature', 'Moisture', 'Rainfall', 'PH',
-            'Nitrogen', 'Phosphorous', 'Potassium', 'Carbon',
-            'Soil', 'Crop', 'Fertilizer', 'Remark'
-        ]
+        required_cols = FEATURE_COLUMNS + [TARGET_CROP, TARGET_FERT, TARGET_REMARK]
         
-        missing = set(required_cols) - set(df.columns)
+        missing = set(required_cols) - set(self.df.columns)
         if missing:
             raise ValueError(f"Missing columns: {missing}")
 
         # --- DATA CLEANING PHASE ---
-        initial_count = len(df)
+        initial_count = len(self.df)
         
         # 1. Remove impossible physical values
-        df = df[df['Rainfall'] >= 0]
-        df = df[df['Temperature'].between(10, 50)]
-        df = df[df['PH'].between(3, 10)]
-        df = df[df['Potassium'] >= -1] # allowing slight negative if it's a sensor error, but usually >=0
+        self.df = self.df[self.df['Rainfall'] >= 0]
+        self.df = self.df[self.df['Temperature'].between(10, 50)]
+        self.df = self.df[self.df['PH'].between(3, 10)]
+        self.df = self.df[self.df['Potassium'] >= -1] # allowing slight negative if it's a sensor error, but usually >=0
         
         # 2. Remove exact duplicates that cause overfitting
-        df = df.drop_duplicates(subset=['Temperature', 'Moisture', 'Rainfall', 'PH', 'Nitrogen', 'Phosphorous', 'Potassium'])
+        self.df = self.df.drop_duplicates(subset=FEATURE_COLUMNS)
         
-        cleaned_count = len(df)
+        cleaned_count = len(self.df)
         logger.info(f"Cleaning complete: Removed {initial_count - cleaned_count} rows of noise/duplicates.")
         
-        self.df = df
         logger.info(f"Dataset ready: {len(self.df)} rows")
         logger.info(f"Crop classes: {self.df['Crop'].nunique()}, Fertilizer classes: {self.df['Fertilizer'].nunique()}")
         
     def prepare_features(self):
         """Prepare feature matrix and targets"""
-        feature_cols = [
-            'Temperature', 'Moisture', 'Rainfall', 'PH',
-            'Nitrogen', 'Phosphorous', 'Potassium', 'Carbon', 'Soil'
-        ]
-        
-        X = self.df[feature_cols].copy()
-        y_crop = self.df['Crop'].copy()
-        y_fertilizer = self.df['Fertilizer'].copy()
+        X = self.df[FEATURE_COLUMNS].copy()
+        y_crop = self.df[TARGET_CROP].copy()
+        y_fertilizer = self.df[TARGET_FERT].copy()
         
         # Build remark map: fertilizer -> most common remark
         logger.info("Building fertilizer-to-remark mapping...")
-        self.remark_map = {}
-        for fert in y_fertilizer.unique():
-            remarks = self.df[self.df['Fertilizer'] == fert]['Remark']
-            self.remark_map[fert] = remarks.mode()[0] if len(remarks) > 0 else ""
+        self.remark_map = (
+            self.df[[TARGET_FERT, TARGET_REMARK]]
+            .dropna()
+            .drop_duplicates(subset=[TARGET_FERT])
+            .set_index(TARGET_FERT)[TARGET_REMARK]
+            .to_dict()
+        )
         
         logger.info(f"Created remark map for {len(self.remark_map)} fertilizer types")
         
-        return X, y_crop, y_fertilizer, feature_cols
+        return X, y_crop, y_fertilizer
     
     def build_preprocessor(self, feature_cols):
         """Build preprocessing pipeline"""
         numeric_features = [
             'Temperature', 'Moisture', 'Rainfall', 'PH',
-            'Nitrogen', 'Phosphorous', 'Potassium', 'Carbon'
+            'Nitrogen', 'Phosphorous', 'Potassium', 'Carbon',
+            'Humidity', 'NPK_Sum', 'PH_Stress', 'Rain_Temp_Balance'
         ]
-        categorical_features = ['Soil']
         
         preprocessor = ColumnTransformer(
             transformers=[
-                ('num', StandardScaler(), numeric_features),
-                ('cat', OneHotEncoder(handle_unknown='ignore'), categorical_features)
+                ('num', StandardScaler(), numeric_features)
             ]
         )
         
         return preprocessor
     
-    def train_model(self, X, y, task_name='crop'):
-            logger.info(f"Training {task_name} with Hyperparameter Tuning...")
+    def train_model(self, X, y, task_name="crop"):
+        logger.info(f"Training {task_name} with Hyperparameter Tuning...")
 
-            X_train, X_test, y_train, y_test = train_test_split(
-                X, y, test_size=0.15, random_state=42, stratify=y
-            )
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.15, random_state=42, stratify=y
+        )
 
-            # Preprocessor setup (Numerical + Categorical)
-            numeric_features = X.select_dtypes(include=['int64', 'float64']).columns.tolist()
-            preprocessor = ColumnTransformer([
-                ('num', StandardScaler(), numeric_features),
-                ('cat', OneHotEncoder(handle_unknown='ignore'), ['Soil'])
-            ])
+        # Preprocessor setup (Numerical + Categorical)
+        numeric_features = [c for c in X.columns if c != "Soil"]
+        categorical_features = ["Soil"]
 
-            pipeline = Pipeline([
-                ('preprocessor', preprocessor),
-                ('classifier', RandomForestClassifier(random_state=42))
-            ])
+        preprocessor = ColumnTransformer(
+            transformers=[
+                ("num", StandardScaler(), numeric_features),
+                ("cat", OneHotEncoder(handle_unknown="ignore"), categorical_features),
+            ],
+            remainder="drop",
+        )
 
-            # This is what makes it take time but increases accuracy
-            param_grid = {
-                'classifier__n_estimators': [300, 500, 1000],
-                'classifier__max_depth': [20, 40, None],
-                'classifier__min_samples_split': [2, 5]
-            }
+        pipeline = Pipeline(
+            [
+                ("preprocessor", preprocessor),
+                ("classifier", RandomForestClassifier(random_state=42)),
+            ]
+        )
 
-            # Increase n_iter to 10 or 20 for better results
-            search = RandomizedSearchCV(pipeline, param_grid, n_iter=10, cv=3, n_jobs=-1)
-            search.fit(X_train, y_train)
+        # This is what makes it take time but increases accuracy
+        param_grid = {
+            'classifier__n_estimators': [300, 500, 1000],
+            'classifier__max_depth': [20, 40, None],
+            'classifier__min_samples_split': [2, 5]
+        }
 
-            best_model = search.best_estimator_
-            acc = accuracy_score(y_test, best_model.predict(X_test))
-            
-            # FIX THE KEYERROR HERE:
-            report = {
-                'task': task_name,
-                'best_model': 'RandomForest (Tuned)',
-                'test_accuracy': float(acc),
-                'train_samples': len(X_train),
-                'test_samples': len(X_test),
-                'val_samples': 0, # Explicitly add this so the print function doesn't crash
-                'classes': sorted(y.unique().tolist())
-            }
-            
-            return best_model, report   
+        # Increase n_iter to 10 or 20 for better results
+        search = RandomizedSearchCV(pipeline, param_grid, n_iter=10, cv=3, n_jobs=-1)
+        search.fit(X_train, y_train)
+
+        best_model = search.best_estimator_
+        acc = accuracy_score(y_test, best_model.predict(X_test))
+        
+        # FIX THE KEYERROR HERE:
+        report = {
+            'task': task_name,
+            'best_model': 'RandomForest (Tuned)',
+            'test_accuracy': float(acc),
+            'train_samples': len(X_train),
+            'test_samples': len(X_test),
+            'val_samples': 0, # Explicitly add this so the print function doesn't crash
+            'classes': sorted(y.unique().tolist())
+        }
+        
+        return best_model, report   
     
     def train_all(self):
         """Train both crop and fertilizer models"""
         self.load_data()
-        X, y_crop, y_fertilizer, feature_cols = self.prepare_features()
+        X, y_crop, y_fertilizer = self.prepare_features()
         
         # Train crop model
         self.crop_model, crop_report = self.train_model(X, y_crop, 'crop')
@@ -162,7 +237,7 @@ class ModelTrainer:
             'model_version': 'v1.0',
             'sklearn_version': sklearn.__version__,
             'training_date': datetime.utcnow().isoformat() + 'Z',
-            'feature_names': feature_cols,
+            'feature_names': FEATURE_COLUMNS,
             'crop_classes': sorted(y_crop.unique().tolist()),
             'fertilizer_classes': sorted(y_fertilizer.unique().tolist()),
             'soil_types': sorted(self.df['Soil'].unique().tolist()),
@@ -197,7 +272,7 @@ class ModelTrainer:
         joblib.dump(self.crop_model, config.CROP_MODEL_PATH)
         logger.info(f"  ✓ Crop model saved to {config.CROP_MODEL_PATH}")
         
-        joblib.dump(self.fertilizer_model, config.FERTILIZER_MODEL_PATH)
+        joblib.dump(self.fertilizer_model, config.FERTILIZER_MODEL_PATH)  # should point to fert_model.joblib
         logger.info(f"  ✓ Fertilizer model saved to {config.FERTILIZER_MODEL_PATH}")
         
         # Save remark map
@@ -261,7 +336,7 @@ def print_training_summary(training_report):
         print(f"  Sklearn Version:        {metadata.get('sklearn_version', 'N/A')}")
         print(f"  Training Date:          {metadata.get('training_date', 'N/A')}")
         print(f"  Soil Types:             {len(metadata.get('soil_types', []))}")
-    
+
     print("\n" + "="*80)
     print(" "*25 + "TRAINING COMPLETED")
     print("="*80 + "\n")
