@@ -93,13 +93,7 @@ def predict():
 
         response = predictor.predict(pred_request)
 
-        # DB logging is non-fatal
-        if db_available:
-            try:
-                log_prediction(data, response, pred_request)
-            except Exception as e:
-                logger.error(f"Failed to log prediction: {e}", exc_info=True)
-
+ 
         return jsonify(response), 200
 
     except ValidationError as e:

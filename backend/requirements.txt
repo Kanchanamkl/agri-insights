@@ -9,3 +9,5 @@ SQLAlchemy==2.0.35
 PyMySQL==1.1.1
 python-dotenv==1.0.1
 matplotlib==3.9.2
+cryptography>=42.0.0
+imbalanced-learn>=0.12.3

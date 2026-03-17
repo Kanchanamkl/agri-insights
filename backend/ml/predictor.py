@@ -926,3 +926,45 @@ class Predictor:
 
 # Global predictor instance
 predictor = Predictor()
+
+import logging
+
+logger = logging.getLogger(__name__)
+
+def _check_sklearn_compat(required_version: str, *, enforce: bool, warn_only: bool):
+    try:
+        import sklearn
+        installed = getattr(sklearn, "__version__", "unknown")
+    except Exception as e:
+        msg = f"Unable to import scikit-learn to verify version compatibility: {e}"
+        if enforce and not warn_only:
+            raise RuntimeError(msg) from e
+        logger.warning(msg)
+        return
+
+    if installed != required_version:
+        msg = (
+            f"scikit-learn version mismatch: installed={installed} required={required_version}. "
+            "Models serialized with a different sklearn version can fail to load (as seen with "
+            "'_RemainderColsList') or produce invalid predictions."
+        )
+        if enforce and not warn_only:
+            raise RuntimeError(msg)
+        logger.warning(msg)
+
+def load_models():
+    from config import config
+
+    _check_sklearn_compat(
+        config.REQUIRED_SKLEARN_VERSION,
+        enforce=getattr(config, "ENFORCE_SKLEARN_VERSION", True),
+        warn_only=getattr(config, "SKLEARN_VERSION_WARN_ONLY", False),
+    )
+
+    logger.info("Loading models...")
+    logger.info("Resolved CROP_MODEL_PATH=%s", config.CROP_MODEL_PATH)
+    logger.info("Resolved FERTILIZER_MODEL_PATH=%s", config.FERTILIZER_MODEL_PATH)
+    logger.info("Resolved REMARK_MAP_PATH=%s", config.REMARK_MAP_PATH)
+    logger.info("Resolved METADATA_PATH=%s", config.METADATA_PATH)
+
+    # keep your existing joblib.load(...) calls; the version check above prevents cryptic failures
