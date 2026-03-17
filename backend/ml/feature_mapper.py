@@ -19,7 +19,6 @@ class SoilParameters(BaseModel):
     @field_validator("moisture", mode="before")
     @classmethod
     def _coerce_moisture(cls, v):
-        # Accept None/"", default to 0.0 (or pick a better default for your domain)
         if v is None or v == "":
             return 0.0
         return v
@@ -44,6 +43,7 @@ class PredictionRequest(BaseModel):
 
 
 class FeatureMapper:
+    # These must match the raw feature columns used during training
     FEATURE_NAMES = [
         "Temperature",
         "Moisture",
@@ -57,7 +57,7 @@ class FeatureMapper:
         "NPK_Sum",
         "PH_Stress",
         "Rain_Temp_Balance",
-        "Soil",  # <-- ADD (model pipeline expects this)
+        "Soil",
     ]
 
     @staticmethod
@@ -90,7 +90,7 @@ class FeatureMapper:
             "NPK_Sum": npk_sum,
             "PH_Stress": float(ph_stress),
             "Rain_Temp_Balance": float(rain_temp_balance),
-            "Soil": str(s.soil),  # <-- ADD
+            "Soil": str(s.soil),
         }
 
         return pd.DataFrame([row], columns=FeatureMapper.FEATURE_NAMES)
