@@ -20,9 +20,9 @@ const initialSoilData: SoilData = {
 };
 
 const initialEnvironmentalData: EnvironmentalData = {
-  rainfall: 0,
-  temperature: 0,
-  humidity: 0,
+  rainfall: null,
+  temperature: null,
+  humidity: null,
   // weather metadata fields are intentionally absent on initial load
 };
 

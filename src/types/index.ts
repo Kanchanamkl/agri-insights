@@ -13,9 +13,9 @@ export interface SoilData {
 
 // Environmental Data — extended with weather fetch metadata
 export interface EnvironmentalData {
-  rainfall: number;      // 0–500 mm  (7-day accumulated)
-  temperature: number;   // 15–40 °C  (7-day mean)
-  humidity: number;      // 0–100 %   (7-day mean)
+  rainfall: number | null;      // 0–500 mm (7-day accumulated) or null until known
+  temperature: number | null;   // 15–40 °C (7-day mean) or null until known
+  humidity: number | null;      // 0–100 % (7-day mean) or null until known
   // weather fetch metadata (optional — only present after a successful API fetch)
   district?: string;              // e.g. "Kandy"
   weatherFetchedAt?: string;      // ISO string timestamp of last successful fetch

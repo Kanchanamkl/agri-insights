@@ -267,9 +267,9 @@ export default function Recommendations() {
           <p style={{ fontSize: '14px', color: '#666' }}>Based on your field conditions</p>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button onClick={handleShare} style={styles.button}>
+          {/* <button onClick={handleShare} style={styles.button}>
             Share
-          </button>
+          </button> */}
           <button onClick={handleDownload} style={styles.button}>
             Export
           </button>

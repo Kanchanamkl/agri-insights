@@ -328,8 +328,17 @@ function EnvironmentalStep() {
     }
   }, [weather.selectedDistrict, weather.status, handleFetchWeather]);
 
-  const showOverrideSliders = weather.manualOverride || weather.status === 'idle' && !weather.selectedDistrict;
-  const dataIsFromApi = weather.status === 'success' && environmental.weatherSource === 'api';
+  const dataIsFromApi =
+    weather.status === 'success' &&
+    environmental.weatherSource === 'api' &&
+    environmental.rainfall != null &&
+    environmental.temperature != null &&
+    environmental.humidity != null;
+
+  const showOverrideSliders =
+    weather.manualOverride ||
+    (weather.status === 'idle' && !weather.selectedDistrict) ||
+    weather.status === 'error';
 
   return (
     <>
@@ -453,8 +462,8 @@ function EnvironmentalStep() {
           </div>
 
           <WeatherValueCard label="Rainfall (7-day total)"   value={environmental.rainfall}    unit="mm" icon="🌧️" />
-          <WeatherValueCard label="Temperature (7-day mean)" value={environmental.temperature}  unit="°C" icon="🌡️" />
-          <WeatherValueCard label="Humidity (7-day mean)"    value={environmental.humidity}     unit="%" icon="💧" />
+          <WeatherValueCard label="Temperature (7-day mean)" value={environmental.temperature} unit="°C" icon="🌡️" />
+          <WeatherValueCard label="Humidity (7-day mean)"    value={environmental.humidity}    unit="%"  icon="💧" />
 
           {/* Override toggle */}
           <button
@@ -467,7 +476,6 @@ function EnvironmentalStep() {
       )}
 
       {/* ── Manual sliders ────────────────────────────────────────── */}
-      {/* Shown when: no district selected, fetch failed, or override is open */}
       {(showOverrideSliders || weather.manualOverride) && (
         <div style={
           weather.manualOverride
@@ -488,19 +496,19 @@ function EnvironmentalStep() {
 
           <SliderInput
             label="Rainfall"
-            value={environmental.rainfall}
+            value={environmental.rainfall ?? 0}
             onChange={(v) => dispatch({ type: 'SET_ENVIRONMENTAL_DATA', payload: { rainfall: v, weatherSource: 'manual' } })}
             min={0} max={500} unit="mm"
           />
           <SliderInput
             label="Temperature"
-            value={environmental.temperature}
+            value={environmental.temperature ?? 0}
             onChange={(v) => dispatch({ type: 'SET_ENVIRONMENTAL_DATA', payload: { temperature: v, weatherSource: 'manual' } })}
             min={15} max={40} unit="°C"
           />
           <SliderInput
             label="Humidity"
-            value={environmental.humidity}
+            value={environmental.humidity ?? 0}
             onChange={(v) => dispatch({ type: 'SET_ENVIRONMENTAL_DATA', payload: { humidity: v, weatherSource: 'manual' } })}
             min={0} max={100} unit="%"
           />
@@ -561,15 +569,17 @@ export default function InputForm() {
     }
 
     if (step === 2) {
-      if (environmental.rainfall < 0 || environmental.rainfall > 500)
-        newErrors.rainfall    = 'Must be 0–500 mm';
-      if (environmental.temperature < 15 || environmental.temperature > 40)
-        newErrors.temperature = 'Must be 15–40 °C';
-      if (environmental.humidity < 0 || environmental.humidity > 100)
-        newErrors.humidity    = 'Must be 0–100 %';
-      // Warn (not block) if no district selected
+      if (environmental.rainfall == null) newErrors.rainfall = 'Required (fetch weather or enter manually)';
+      else if (environmental.rainfall < 0 || environmental.rainfall > 500) newErrors.rainfall = 'Must be 0–500 mm';
+
+      if (environmental.temperature == null) newErrors.temperature = 'Required (fetch weather or enter manually)';
+      else if (environmental.temperature < 15 || environmental.temperature > 40) newErrors.temperature = 'Must be 15–40 °C';
+
+      if (environmental.humidity == null) newErrors.humidity = 'Required (fetch weather or enter manually)';
+      else if (environmental.humidity < 0 || environmental.humidity > 100) newErrors.humidity = 'Must be 0–100 %';
+
       if (!environmental.district && !state.weather.manualOverride)
-        newErrors.district    = 'Select a district or enter values manually';
+        newErrors.district = 'Select a district or enter values manually';
     }
 
     setErrors(newErrors);
