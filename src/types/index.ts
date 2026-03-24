@@ -16,6 +16,8 @@ export interface EnvironmentalData {
 
 // Complete Form Data
 export type FormData = {
+  field: any;
+  soil: any;
   soilParameters: {
     nitrogen: number;
     phosphorous: number;
@@ -41,6 +43,7 @@ export interface FeatureImportance {
 
 // Crop Recommendation
 export interface CropRecommendation {
+  label: string;
   crop: string;
   confidence: number; // 0-100
   expectedYieldMin: number;
@@ -54,6 +57,7 @@ export interface CropRecommendation {
 
 // Fertilizer Recommendation
 export interface FertilizerRecommendation {
+  label: ReactNode;
   type: string;
   components: string[];
   quantityPerAcre: string;

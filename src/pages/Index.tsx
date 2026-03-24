@@ -1,67 +1,46 @@
 import { Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { 
-  Sprout, 
-  BarChart3, 
-  CloudRain, 
-  Brain, 
-  Sparkles, 
-  TrendingUp,
-  Users,
-  Shield,
-  ArrowRight,
-  CheckCircle2,
-  Star
-} from 'lucide-react';
 
 const features = [
   {
-    icon: Brain,
     title: 'AI-Powered Predictions',
     description: 'Machine learning models trained on real agricultural data for accurate crop and fertilizer recommendations.',
   },
   {
-    icon: BarChart3,
     title: 'Multi-Input Analysis',
     description: 'Analyzes soil nutrients, weather patterns, and market trends to provide holistic advice.',
   },
   {
-    icon: CloudRain,
     title: 'Real-Time Updates',
     description: 'Recommendations adapt based on current weather conditions and seasonal changes.',
   },
   {
-    icon: Sparkles,
     title: 'Explainable Results',
     description: 'Understand WHY each recommendation is made with visual SHAP-style explanations.',
   },
 ];
 
 const stats = [
-  { value: '89%', label: 'Users prefer field-specific advice', icon: Users },
-  { value: '86.6%', label: 'Find recommendations very useful', icon: Star },
-  { value: '30%', label: 'Potential cost reduction', icon: TrendingUp },
-  { value: '95%', label: 'Prediction accuracy', icon: Shield },
+  { value: '89%', label: 'Users prefer field-specific advice' },
+  { value: '86.6%', label: 'Find recommendations very useful' },
+  { value: '30%', label: 'Potential cost reduction' },
+  { value: '95%', label: 'Prediction accuracy' },
 ];
 
 const testimonials = [
   {
     quote: "MICFRS helped me understand exactly what my paddy field needed. My yield increased by 20% after following their recommendations.",
     author: "Sunil Perera",
-    role: "Rice Farmer, Kurunegala",
-    avatar: "SP",
+    role: "Rice Farmer, Kurunegoda",
   },
   {
     quote: "The visual explanations are excellent. I can now explain to farmers exactly why certain fertilizers are recommended for their specific conditions.",
     author: "Dr. Kamani Silva",
     role: "Agriculture Officer, Kandy",
-    avatar: "KS",
   },
   {
     quote: "As a student researcher, the data insights from MICFRS have been invaluable for my thesis on sustainable farming practices.",
     author: "Tharaka Fernando",
     role: "Agri-tech Researcher, Peradeniya",
-    avatar: "TF",
   },
 ];
 
@@ -72,323 +51,279 @@ const steps = [
   { step: 4, title: 'Get Recommendations', description: 'Receive personalized crop and fertilizer advice' },
 ];
 
+const styles = {
+  container: {
+    maxWidth: '1200px',
+    margin: '0 auto',
+    padding: '40px 24px',
+    fontFamily: 'system-ui, -apple-system, sans-serif',
+    lineHeight: 1.5,
+    color: '#1a1a1a',
+  },
+  section: {
+    marginBottom: '64px',
+  },
+  grid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+    gap: '24px',
+  },
+  card: {
+    padding: '24px',
+    border: '1px solid #e5e5e5',
+    borderRadius: '8px',
+    backgroundColor: '#ffffff',
+  },
+  button: {
+    padding: '10px 20px',
+    backgroundColor: '#f5f5f5',
+    border: '1px solid #d4d4d4',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: 500,
+    fontFamily: 'inherit',
+  },
+  buttonPrimary: {
+    padding: '10px 20px',
+    backgroundColor: '#2c5f2d',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: 500,
+    fontFamily: 'inherit',
+  },
+  heading1: {
+    fontSize: '42px',
+    fontWeight: 600,
+    marginBottom: '16px',
+    lineHeight: 1.2,
+  },
+  heading2: {
+    fontSize: '28px',
+    fontWeight: 600,
+    marginBottom: '12px',
+  },
+  heading3: {
+    fontSize: '18px',
+    fontWeight: 600,
+    marginBottom: '8px',
+  },
+  statValue: {
+    fontSize: '36px',
+    fontWeight: 600,
+    color: '#2c5f2d',
+    marginBottom: '8px',
+  },
+};
+
 export default function Index() {
   return (
-    <div className="flex flex-col">
+    <div style={styles.container}>
       {/* Hero Section */}
-      <section className="relative gradient-hero overflow-hidden">
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -top-1/2 -right-1/4 w-[800px] h-[800px] rounded-full bg-primary/5 blur-3xl" />
-          <div className="absolute -bottom-1/2 -left-1/4 w-[600px] h-[600px] rounded-full bg-accent/5 blur-3xl" />
-        </div>
-        
-        <div className="container relative py-20 md:py-32">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className="space-y-8">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium">
-                <Sprout className="h-4 w-4" />
-                Smart Farming Through Data-Driven Decisions
+      <section style={styles.section}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '48px', alignItems: 'center' }}>
+          <div>
+            <p style={{ fontSize: '14px', color: '#666', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Smart Farming Through Data-Driven Decisions
+            </p>
+            <h1 style={styles.heading1}>
+              Personalized Crop & Fertilizer Recommendations
+            </h1>
+            <p style={{ fontSize: '18px', color: '#4a4a4a', marginBottom: '24px' }}>
+              MICFRS analyzes your soil nutrients, weather conditions, and market data to provide
+              field-specific advice — not generic regional guidelines.
+            </p>
+            <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
+              <Link to="/input">
+                <button style={styles.buttonPrimary}>
+                  Get Started →
+                </button>
+              </Link>
+              <Link to="/about">
+                <button style={styles.button}>
+                  Learn More
+                </button>
+              </Link>
+            </div>
+            <p style={{ fontSize: '14px', color: '#666' }}>Trusted by 5,000+ farmers across Sri Lanka</p>
+          </div>
+
+          {/* Sample Result Card */}
+          <div style={styles.card}>
+            <div style={{ marginBottom: '20px' }}>
+              <p style={{ fontWeight: 600, marginBottom: '4px' }}>Recommendation Ready</p>
+              <p style={{ fontSize: '13px', color: '#666' }}>Based on your field data</p>
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f0f0f0' }}>
+                <span>🌾 Rice (Paddy)</span>
+                <span style={{ fontWeight: 600, color: '#2c5f2d' }}>95% suitable</span>
               </div>
-              
-              <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
-                Get <span className="text-gradient-primary">Personalized</span> Crop & Fertilizer Recommendations
-              </h1>
-              
-              <p className="text-lg md:text-xl text-muted-foreground max-w-xl">
-                MICFRS analyzes your soil nutrients, weather conditions, and market data to provide 
-                field-specific advice—not generic regional guidelines.
-              </p>
-              
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Link to="/input">
-                  <Button variant="hero" size="xl" className="w-full sm:w-auto">
-                    Get Started
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Button>
-                </Link>
-                <Link to="/about">
-                  <Button variant="heroOutline" size="xl" className="w-full sm:w-auto">
-                    Learn More
-                  </Button>
-                </Link>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f0f0f0' }}>
+                <span style={{ color: '#666' }}>Expected Yield</span>
+                <span style={{ fontWeight: 500 }}>4.5 – 5.5 tons/ha</span>
               </div>
-              
-              <div className="flex items-center gap-6 pt-4">
-                <div className="flex -space-x-3">
-                  {['SP', 'KS', 'TF', 'NR'].map((initials, i) => (
-                    <div
-                      key={i}
-                      className="w-10 h-10 rounded-full bg-primary/20 border-2 border-background flex items-center justify-center text-xs font-semibold text-primary"
-                    >
-                      {initials}
-                    </div>
-                  ))}
-                </div>
-                <div>
-                  <p className="text-sm font-medium">Trusted by 5,000+ farmers</p>
-                  <p className="text-xs text-muted-foreground">across Sri Lanka</p>
-                </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0' }}>
+                <span style={{ color: '#666' }}>Fertilizer</span>
+                <span style={{ fontWeight: 500 }}>Urea + TSP + MOP</span>
               </div>
             </div>
-            
-            <div className="relative">
-              <div className="relative bg-card rounded-2xl shadow-xl border border-border/50 p-6 space-y-4 animate-float">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center">
-                    <Sprout className="h-6 w-6 text-primary-foreground" />
-                  </div>
-                  <div>
-                    <p className="font-semibold">Recommendation Ready</p>
-                    <p className="text-sm text-muted-foreground">Based on your field data</p>
-                  </div>
-                </div>
-                
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <span className="flex items-center gap-2">
-                      <span className="text-2xl">🌾</span>
-                      <span className="font-medium">Rice (Paddy)</span>
-                    </span>
-                    <span className="text-sm font-semibold text-success">95% suitable</span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <span className="text-sm text-muted-foreground">Expected Yield</span>
-                    <span className="font-medium">4.5 - 5.5 tons/ha</span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <span className="text-sm text-muted-foreground">Fertilizer</span>
-                    <span className="font-medium text-right">Urea + TSP + MOP</span>
-                  </div>
-                </div>
-                
-                <div className="pt-2">
-                  <div className="h-2 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full w-[95%] gradient-primary rounded-full" />
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-2">Confidence Score: 95%</p>
-                </div>
+
+            <div>
+              <div style={{ height: '4px', backgroundColor: '#e5e5e5', borderRadius: '2px', overflow: 'hidden', marginBottom: '8px' }}>
+                <div style={{ width: '95%', height: '100%', backgroundColor: '#2c5f2d' }} />
               </div>
-              
-              {/* Decorative elements */}
-              <div className="absolute -bottom-4 -left-4 w-24 h-24 bg-accent/10 rounded-2xl -z-10 animate-pulse-glow" />
-              <div className="absolute -top-4 -right-4 w-16 h-16 bg-primary/10 rounded-xl -z-10" />
+              <p style={{ fontSize: '13px', color: '#666' }}>Confidence Score: 95%</p>
             </div>
           </div>
         </div>
       </section>
 
       {/* Stats Section */}
-      <section className="py-16 bg-muted/30">
-        <div className="container">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
-            {stats.map((stat, i) => (
-              <div
-                key={i}
-                className="text-center p-6 rounded-xl bg-card shadow-card hover:shadow-card-hover transition-shadow"
-              >
-                <stat.icon className="h-8 w-8 text-primary mx-auto mb-3" />
-                <p className="text-3xl md:text-4xl font-display font-bold text-primary">{stat.value}</p>
-                <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
-              </div>
-            ))}
-          </div>
+      <section style={styles.section}>
+        <div style={styles.grid}>
+          {stats.map((stat, i) => (
+            <div key={i} style={{ textAlign: 'center', padding: '24px', border: '1px solid #e5e5e5', borderRadius: '8px', backgroundColor: '#fafafa' }}>
+              <p style={styles.statValue}>{stat.value}</p>
+              <p style={{ fontSize: '14px', color: '#4a4a4a' }}>{stat.label}</p>
+            </div>
+          ))}
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="py-20">
-        <div className="container">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">
-              Why Choose MICFRS?
-            </h2>
-            <p className="text-muted-foreground text-lg">
-              Our intelligent system combines multiple data sources to deliver 
-              recommendations tailored specifically to your field conditions.
-            </p>
-          </div>
-          
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {features.map((feature, i) => (
-              <div
-                key={i}
-                className="group p-6 rounded-xl bg-card border border-border/50 shadow-card hover:shadow-card-hover hover:border-primary/30 transition-all duration-300"
-              >
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
-                  <feature.icon className="h-6 w-6 text-primary" />
-                </div>
-                <h3 className="font-semibold text-lg mb-2">{feature.title}</h3>
-                <p className="text-muted-foreground text-sm">{feature.description}</p>
-              </div>
-            ))}
-          </div>
+      <section style={styles.section}>
+        <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+          <h2 style={styles.heading2}>Why Choose MICFRS?</h2>
+          <p style={{ fontSize: '16px', color: '#4a4a4a', maxWidth: '600px', margin: '0 auto' }}>
+            Our intelligent system combines multiple data sources to deliver
+            recommendations tailored specifically to your field conditions.
+          </p>
+        </div>
+
+        <div style={styles.grid}>
+          {features.map((feature, i) => (
+            <div key={i} style={styles.card}>
+              <h3 style={styles.heading3}>{feature.title}</h3>
+              <p style={{ fontSize: '14px', color: '#666', lineHeight: 1.5 }}>{feature.description}</p>
+            </div>
+          ))}
         </div>
       </section>
 
       {/* How It Works */}
-      <section className="py-20 bg-muted/30">
-        <div className="container">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">
-              How It Works
-            </h2>
-            <p className="text-muted-foreground text-lg">
-              Get personalized recommendations in just four simple steps.
-            </p>
-          </div>
-          
-          <div className="grid md:grid-cols-4 gap-6">
-            {steps.map((item, i) => (
-              <div key={i} className="relative">
-                <div className="text-center p-6">
-                  <div className="w-16 h-16 rounded-full gradient-primary flex items-center justify-center mx-auto mb-4 text-2xl font-bold text-primary-foreground">
-                    {item.step}
-                  </div>
-                  <h3 className="font-semibold text-lg mb-2">{item.title}</h3>
-                  <p className="text-muted-foreground text-sm">{item.description}</p>
-                </div>
-                {i < steps.length - 1 && (
-                  <div className="hidden md:block absolute top-8 left-[60%] w-[80%] h-0.5 bg-border">
-                    <ArrowRight className="absolute -right-3 -top-2 h-5 w-5 text-muted-foreground" />
-                  </div>
-                )}
+      <section style={styles.section}>
+        <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+          <h2 style={styles.heading2}>How It Works</h2>
+          <p style={{ fontSize: '16px', color: '#4a4a4a' }}>Get personalized recommendations in just four simple steps.</p>
+        </div>
+
+        <div style={styles.grid}>
+          {steps.map((item, i) => (
+            <div key={i} style={{ textAlign: 'center', ...styles.card }}>
+              <div style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: '20px', fontWeight: 600, color: '#2c5f2d' }}>
+                {item.step}
               </div>
-            ))}
-          </div>
-          
-          <div className="text-center mt-12">
-            <Link to="/input">
-              <Button variant="hero" size="lg">
-                Start Now
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-            </Link>
-          </div>
+              <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '8px' }}>{item.title}</h3>
+              <p style={{ fontSize: '13px', color: '#666' }}>{item.description}</p>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ textAlign: 'center', marginTop: '48px' }}>
+          <Link to="/input">
+            <button style={styles.buttonPrimary}>
+              Start Now →
+            </button>
+          </Link>
         </div>
       </section>
 
       {/* Value Propositions */}
-      <section className="py-20">
-        <div className="container">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <h2 className="font-display text-3xl md:text-4xl font-bold mb-6">
-                Make Smarter Farming Decisions
-              </h2>
-              <div className="space-y-4">
-                {[
-                  'Get personalized crop recommendations based on YOUR field conditions',
-                  'Optimize fertilizer use and reduce costs by up to 30%',
-                  'Understand WHY each recommendation is made with AI explanations',
-                  'Real-time updates based on weather and market changes',
-                ].map((item, i) => (
-                  <div key={i} className="flex items-start gap-3">
-                    <CheckCircle2 className="h-6 w-6 text-success shrink-0 mt-0.5" />
-                    <p className="text-muted-foreground">{item}</p>
-                  </div>
-                ))}
-              </div>
-              
-              <div className="mt-8">
-                <Link to="/input">
-                  <Button variant="default" size="lg">
-                    Try It Free
-                  </Button>
-                </Link>
-              </div>
+      <section style={styles.section}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '48px' }}>
+          <div>
+            <h2 style={styles.heading2}>Make Smarter Farming Decisions</h2>
+            <div style={{ marginTop: '24px' }}>
+              {[
+                'Get personalized crop recommendations based on YOUR field conditions',
+                'Optimize fertilizer use and reduce costs by up to 30%',
+                'Understand WHY each recommendation is made with AI explanations',
+                'Real-time updates based on weather and market changes',
+              ].map((item, i) => (
+                <div key={i} style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+                  <span style={{ color: '#2c5f2d', fontWeight: 'bold' }}>✓</span>
+                  <p style={{ fontSize: '15px', color: '#4a4a4a' }}>{item}</p>
+                </div>
+              ))}
             </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-4">
-                <div className="p-6 rounded-xl bg-primary/5 border border-primary/20">
-                  <p className="text-3xl font-display font-bold text-primary">30%</p>
-                  <p className="text-sm text-muted-foreground mt-1">Cost Reduction</p>
-                </div>
-                <div className="p-6 rounded-xl bg-accent/5 border border-accent/20">
-                  <p className="text-3xl font-display font-bold text-accent">24/7</p>
-                  <p className="text-sm text-muted-foreground mt-1">Available Anytime</p>
-                </div>
-              </div>
-              <div className="space-y-4 mt-8">
-                <div className="p-6 rounded-xl bg-success/5 border border-success/20">
-                  <p className="text-3xl font-display font-bold text-success">20%</p>
-                  <p className="text-sm text-muted-foreground mt-1">Yield Increase</p>
-                </div>
-                <div className="p-6 rounded-xl bg-secondary/10 border border-secondary/20">
-                  <p className="text-3xl font-display font-bold text-secondary">50+</p>
-                  <p className="text-sm text-muted-foreground mt-1">Crop Varieties</p>
-                </div>
-              </div>
+            <div style={{ marginTop: '32px' }}>
+              <Link to="/input">
+                <button style={styles.buttonPrimary}>Try It Free</button>
+              </Link>
             </div>
+          </div>
+
+          <div style={styles.grid}>
+            {[
+              { value: '30%', label: 'Cost Reduction' },
+              { value: '24/7', label: 'Available Anytime' },
+              { value: '20%', label: 'Yield Increase' },
+              { value: '50+', label: 'Crop Varieties' },
+            ].map((item, i) => (
+              <div key={i} style={{ textAlign: 'center', padding: '24px', border: '1px solid #e5e5e5', borderRadius: '8px', backgroundColor: '#fafafa' }}>
+                <p style={{ fontSize: '32px', fontWeight: 600, color: '#2c5f2d', marginBottom: '8px' }}>{item.value}</p>
+                <p style={{ fontSize: '14px', color: '#666' }}>{item.label}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* Testimonials */}
-      <section className="py-20 bg-muted/30">
-        <div className="container">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">
-              Trusted by Farmers & Experts
-            </h2>
-            <p className="text-muted-foreground text-lg">
-              See what our users say about their experience with MICFRS.
-            </p>
-          </div>
-          
-          <div className="grid md:grid-cols-3 gap-6">
-            {testimonials.map((testimonial, i) => (
-              <div
-                key={i}
-                className="p-6 rounded-xl bg-card border border-border/50 shadow-card"
-              >
-                <div className="flex gap-1 mb-4">
-                  {[...Array(5)].map((_, j) => (
-                    <Star key={j} className="h-4 w-4 fill-warning text-warning" />
-                  ))}
-                </div>
-                <p className="text-muted-foreground mb-6 italic">"{testimonial.quote}"</p>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-semibold text-primary">
-                    {testimonial.avatar}
-                  </div>
-                  <div>
-                    <p className="font-semibold text-sm">{testimonial.author}</p>
-                    <p className="text-xs text-muted-foreground">{testimonial.role}</p>
-                  </div>
-                </div>
+      <section style={styles.section}>
+        <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+          <h2 style={styles.heading2}>Trusted by Farmers & Experts</h2>
+          <p style={{ fontSize: '16px', color: '#4a4a4a' }}>See what our users say about their experience with MICFRS.</p>
+        </div>
+
+        <div style={styles.grid}>
+          {testimonials.map((testimonial, i) => (
+            <div key={i} style={styles.card}>
+              <div style={{ display: 'flex', gap: '2px', marginBottom: '20px' }}>
+                {[...Array(5)].map((_, j) => (
+                  <span key={j} style={{ color: '#f5b042', fontSize: '16px' }}>★</span>
+                ))}
               </div>
-            ))}
-          </div>
+              <p style={{ fontSize: '14px', color: '#4a4a4a', marginBottom: '24px', fontStyle: 'italic', lineHeight: 1.5 }}>
+                "{testimonial.quote}"
+              </p>
+              <div>
+                <p style={{ fontWeight: 600, marginBottom: '4px' }}>{testimonial.author}</p>
+                <p style={{ fontSize: '13px', color: '#666' }}>{testimonial.role}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="py-20">
-        <div className="container">
-          <div className="relative rounded-2xl overflow-hidden gradient-primary p-8 md:p-16 text-center">
-            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzRjMC0yLjIgMS44LTQgNC00czQgMS44IDQgNC0xLjggNC00IDQtNC0xLjgtNC00eiIvPjwvZz48L2c+PC9zdmc+')] opacity-30" />
-            <div className="relative">
-              <h2 className="font-display text-3xl md:text-4xl font-bold text-primary-foreground mb-4">
-                Ready to Optimize Your Farm?
-              </h2>
-              <p className="text-primary-foreground/80 text-lg max-w-xl mx-auto mb-8">
-                Join thousands of Sri Lankan farmers using MICFRS to make 
-                data-driven decisions and improve their yields.
-              </p>
-              <Link to="/input">
-                <Button 
-                  size="xl" 
-                  className="bg-background text-primary hover:bg-background/90 font-semibold"
-                >
-                  Get Your Free Recommendation
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-              </Link>
-            </div>
-          </div>
+      <section>
+        <div style={{ textAlign: 'center', padding: '48px', border: '1px solid #e5e5e5', borderRadius: '12px', backgroundColor: '#fafafa' }}>
+          <h2 style={styles.heading2}>Ready to Optimize Your Farm?</h2>
+          <p style={{ fontSize: '16px', color: '#4a4a4a', marginBottom: '32px', maxWidth: '500px', margin: '0 auto 32px' }}>
+            Join thousands of Sri Lankan farmers using MICFRS to make
+            data-driven decisions and improve their yields.
+          </p>
+          <Link to="/input">
+            <button style={{ ...styles.buttonPrimary, padding: '12px 28px', fontSize: '16px' }}>
+              Get Your Free Recommendation →
+            </button>
+          </Link>
         </div>
       </section>
     </div>

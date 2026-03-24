@@ -1,76 +1,116 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Slider } from '@/components/ui/slider';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { fetchRecommendation} from '@/lib/recommendationEngine';
+import { fetchRecommendation } from '@/lib/recommendationEngine';
 import { checkBackendHealth } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
-import { REGIONS, PREVIOUS_CROPS, IRRIGATION_TYPES, SOIL_TYPES } from '@/types';
-import { 
-  ArrowLeft, 
-  ArrowRight, 
-  Beaker, 
-  CloudRain, 
-  MapPin, 
-  Info, 
-  Sparkles,
-  Loader2,
-  RotateCcw
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { SOIL_TYPES } from '@/types';
 
 const stepInfo = [
-  { 
-    step: 1, 
-    title: 'Soil Information', 
-    description: 'Enter your soil nutrient levels and properties',
-    icon: Beaker
-  },
-  { 
-    step: 2, 
-    title: 'Environmental Data', 
-    description: 'Provide weather and climate information',
-    icon: CloudRain
-  },
+  { step: 1, title: 'Soil Information' },
+  { step: 2, title: 'Environmental Data' },
 ];
+
+const styles = {
+  container: {
+    maxWidth: '600px',
+    margin: '0 auto',
+    padding: '40px 24px',
+    fontFamily: 'system-ui, -apple-system, sans-serif',
+    lineHeight: 1.5,
+    color: '#1a1a1a',
+  },
+  card: {
+    border: '1px solid #e5e5e5',
+    borderRadius: '8px',
+    padding: '32px',
+    backgroundColor: '#ffffff',
+  },
+  button: {
+    padding: '8px 16px',
+    backgroundColor: '#f5f5f5',
+    border: '1px solid #d4d4d4',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: 500,
+    fontFamily: 'inherit',
+  },
+  buttonPrimary: {
+    padding: '8px 20px',
+    backgroundColor: '#2c5f2d',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: 500,
+    fontFamily: 'inherit',
+  },
+  input: {
+    width: '100%',
+    padding: '8px',
+    border: '1px solid #d4d4d4',
+    borderRadius: '4px',
+    fontSize: '14px',
+    fontFamily: 'inherit',
+  },
+  select: {
+    width: '100%',
+    padding: '8px',
+    border: '1px solid #d4d4d4',
+    borderRadius: '4px',
+    fontSize: '14px',
+    fontFamily: 'inherit',
+    backgroundColor: '#ffffff',
+  },
+  error: {
+    fontSize: '12px',
+    color: '#dc2626',
+    marginTop: '4px',
+  },
+  statusHealthy: {
+    marginBottom: '16px',
+    padding: '12px',
+    border: '1px solid #d1fae5',
+    borderRadius: '6px',
+    fontSize: '14px',
+    backgroundColor: '#f0fdf4',
+    color: '#166534',
+  },
+  statusUnhealthy: {
+    marginBottom: '16px',
+    padding: '12px',
+    border: '1px solid #fed7aa',
+    borderRadius: '6px',
+    fontSize: '14px',
+    backgroundColor: '#fffbeb',
+    color: '#92400e',
+  },
+};
 
 function ProgressIndicator({ currentStep }: { currentStep: number }) {
   return (
-    <div className="flex items-center justify-center mb-8">
-      {stepInfo.map((item, i) => (
-        <div key={item.step} className="flex items-center">
-          <div
-            className={cn(
-              "flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all duration-300",
-              currentStep >= item.step
-                ? "bg-primary border-primary text-primary-foreground"
-                : "border-muted-foreground/30 text-muted-foreground"
-            )}
-          >
-            <item.icon className="h-5 w-5" />
-          </div>
-          <div className="hidden sm:block ml-2 mr-4">
-            <p className={cn(
-              "text-sm font-medium",
-              currentStep >= item.step ? "text-foreground" : "text-muted-foreground"
-            )}>
-              {item.title}
-            </p>
-          </div>
-          {i < stepInfo.length - 1 && (
-            <div 
-              className={cn(
-                "w-12 sm:w-20 h-0.5 mx-2 transition-colors duration-300",
-                currentStep > item.step ? "bg-primary" : "bg-muted"
-              )}
-            />
-          )}
+    <div style={{ display: 'flex', gap: '24px', marginBottom: '32px', justifyContent: 'center' }}>
+      {stepInfo.map((item) => (
+        <div key={item.step} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '32px',
+            height: '32px',
+            borderRadius: '50%',
+            backgroundColor: currentStep >= item.step ? '#2c5f2d' : '#e5e5e5',
+            color: currentStep >= item.step ? '#ffffff' : '#666',
+            fontSize: '14px',
+            fontWeight: 500,
+          }}>
+            {item.step}
+          </span>
+          <span style={{ fontSize: '14px', fontWeight: currentStep >= item.step ? 500 : 400 }}>
+            {item.title}
+          </span>
         </div>
       ))}
     </div>
@@ -85,7 +125,6 @@ function SliderInput({
   max,
   step = 1,
   unit,
-  tooltip,
 }: {
   label: string;
   value: number;
@@ -97,43 +136,31 @@ function SliderInput({
   tooltip: string;
 }) {
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Label className="text-sm font-medium">{label}</Label>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-            </TooltipTrigger>
-            <TooltipContent className="max-w-xs">
-              <p>{tooltip}</p>
-            </TooltipContent>
-          </Tooltip>
-        </div>
-        <div className="flex items-center gap-2">
-          <Input
-            type="number"
-            value={value}
-            onChange={(e) => onChange(Number(e.target.value))}
-            min={min}
-            max={max}
-            step={step}
-            className="w-20 h-8 text-right"
-          />
-          <span className="text-sm text-muted-foreground w-12">{unit}</span>
-        </div>
+    <div style={{ marginBottom: '24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+        <label style={{ fontSize: '14px', fontWeight: 500 }}>{label}</label>
+        <input
+          type="number"
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+          min={min}
+          max={max}
+          step={step}
+          style={{ width: '80px', padding: '4px 8px', border: '1px solid #d4d4d4', borderRadius: '4px', textAlign: 'right' }}
+        />
       </div>
-      <Slider
-        value={[value]}
-        onValueChange={([v]) => onChange(v)}
+      <input
+        type="range"
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
         min={min}
         max={max}
         step={step}
-        className="py-2"
+        style={{ width: '100%', margin: '8px 0' }}
       />
-      <div className="flex justify-between text-xs text-muted-foreground">
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#666' }}>
         <span>{min}</span>
-        <span>{max}</span>
+        <span>{max} {unit}</span>
       </div>
     </div>
   );
@@ -148,7 +175,8 @@ export default function InputForm() {
   const [backendStatus, setBackendStatus] = useState<'unknown' | 'healthy' | 'unhealthy'>('unknown');
 
   const { formData, currentStep } = state;
-  const { soil, environmental } = formData;
+  const { soil } = formData;
+  const environmental = (formData as any).environmental ?? (formData as any).environment;
 
   useEffect(() => {
     const checkHealth = async () => {
@@ -165,7 +193,6 @@ export default function InputForm() {
           toast({
             title: 'Backend Initializing',
             description: 'Models are loading, please wait...',
-            variant: 'default',
           });
         }
       } catch (error) {
@@ -173,7 +200,6 @@ export default function InputForm() {
         console.warn('Backend not available, will use fallback mode');
       }
     };
-    
     checkHealth();
   }, [toast]);
 
@@ -185,7 +211,7 @@ export default function InputForm() {
       if (soil.phosphorus < 0 || soil.phosphorus > 150) newErrors.phosphorus = 'Must be 0-150 ppm';
       if (soil.potassium < 0 || soil.potassium > 300) newErrors.potassium = 'Must be 0-300 ppm';
       if (soil.pH < 3.5 || soil.pH > 9.0) newErrors.pH = 'Must be 3.5-9.0';
-      if (!soil.soilType) newErrors.soilType = 'Please select a soil type'; // Add validation
+      if (!soil.soilType) newErrors.soilType = 'Please select a soil type';
     }
 
     if (step === 2) {
@@ -207,320 +233,224 @@ export default function InputForm() {
   const handleBack = () => {
     dispatch({ type: 'SET_STEP', payload: currentStep - 1 });
   };
+  const payload = useMemo(
+    () => ({
+      field: (formData as any).field ?? {},
+      soil,
+      environmental,
+    }),
+    [formData, soil, environmental]
+  );
 
-  const payload = useMemo(() => {
-    return {
-      soilParameters: {
-        nitrogen: Number(soil.nitrogen),
-        phosphorous: Number(soil.phosphorus),
-        potassium: Number(soil.potassium),
-        ph: Number(soil.pH),
-        carbon: Number(soil.carbon),
-        moisture: Number(soil.moisture),
-        soil: soil.soilType,
-      },
-      environmentalFactors: {
-        temperature: Number(environmental.temperature),
-        rainfall: Number(environmental.rainfall),
-        humidity: Number(environmental.humidity),
-      },
-    };
-  }, [soil, environmental]);
 
   const handleSubmit = async () => {
     if (!validateStep(2)) return;
-  
+
     setIsSubmitting(true);
     dispatch({ type: 'SET_LOADING', payload: true });
-    
+
     try {
-      // Call the ML backend
-      const recommendation = await fetchRecommendation(payload);
-      
+      const recommendation = await fetchRecommendation(payload as any);
       dispatch({ type: 'ADD_RECOMMENDATION', payload: recommendation });
       dispatch({ type: 'SET_LOADING', payload: false });
-      
+
       toast({
         title: 'Recommendation Generated',
         description: `Recommended crop: ${recommendation.crop.crop} with ${recommendation.crop.confidence}% confidence`,
       });
-      
+
       setIsSubmitting(false);
       navigate(`/recommendations/${recommendation.id}`);
-      
     } catch (error) {
-      console.error('Failed to generate recommendation:', error);
-      
       dispatch({ type: 'SET_LOADING', payload: false });
-      
       toast({
         title: 'Backend Error',
-        description: error instanceof Error 
-          ? error.message 
+        description: error instanceof Error
+          ? error.message
           : 'Failed to connect to ML backend. Please check if the backend is running.',
         variant: 'destructive',
       });
-      
       setIsSubmitting(false);
     }
   };
-  const handleQuickFill = () => {
-    dispatch({ type: 'QUICK_FILL' });
-  };
 
-  const handleReset = () => {
-    dispatch({ type: 'RESET_FORM' });
-  };
-
+  const handleQuickFill = () => dispatch({ type: 'QUICK_FILL' });
+  const handleReset = () => dispatch({ type: 'RESET_FORM' });
 
   return (
-    <div className="container py-8 md:py-12">
-      <div className="max-w-3xl mx-auto">
-        {/* Backend Status Indicator */}
-        {backendStatus === 'healthy' && (
-          <div className="mb-4 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
-            <p className="text-sm text-green-800 dark:text-green-200 flex items-center gap-2">
-              <span className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
-              ML Backend Connected
-            </p>
-          </div>
-        )}
-        {backendStatus === 'unhealthy' && (
-          <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-            <p className="text-sm text-yellow-800 dark:text-yellow-200 flex items-center gap-2">
-              <span className="h-2 w-2 bg-yellow-500 rounded-full" />
-              Using fallback mode (backend unavailable)
-            </p>
-          </div>
-        )}
-
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="font-display text-3xl md:text-4xl font-bold mb-2">
-            Get Your Recommendation
-          </h1>
-          <p className="text-muted-foreground">
-            Fill in your field data to receive personalized crop and fertilizer advice
-          </p>
+    <div style={styles.container}>
+      {/* Backend Status */}
+      {backendStatus === 'healthy' && (
+        <div style={styles.statusHealthy}>
+          ✓ ML Backend Connected
         </div>
-
-        {/* Quick Actions */}
-        <div className="flex flex-wrap items-center justify-center gap-3 mb-6">
-          <Button variant="outline" size="sm" onClick={handleQuickFill}>
-            <Sparkles className="h-4 w-4 mr-2" />
-            Quick Fill (Demo)
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleReset}>
-            <RotateCcw className="h-4 w-4 mr-2" />
-            Reset
-          </Button>
-          {/* <Select onValueChange={(v) => handleDemoSelect(Number(v))}>
-            <SelectTrigger className="w-[200px] h-9">
-              <SelectValue placeholder="Load demo scenario..." />
-            </SelectTrigger>
-            <SelectContent>
-              {demoRecommendations.map((demo, i) => (
-                <SelectItem key={i} value={String(i)}>
-                  {demo.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select> */}
+      )}
+      {backendStatus === 'unhealthy' && (
+        <div style={styles.statusUnhealthy}>
+          ⚠ Using fallback mode (backend unavailable)
         </div>
+      )}
 
-        {/* Progress Indicator */}
-        <ProgressIndicator currentStep={currentStep} />
+      {/* Header */}
+      <div style={{ marginBottom: '32px' }}>
+        <h1 style={{ fontSize: '32px', fontWeight: 600, marginBottom: '8px' }}>
+          Get Your Recommendation
+        </h1>
+        <p style={{ fontSize: '16px', color: '#4a4a4a' }}>
+          Fill in your field data to receive personalized crop and fertilizer advice
+        </p>
+      </div>
 
-        {/* Form Card */}
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              {currentStep === 1 && <Beaker className="h-5 w-5 text-primary" />}
-              {currentStep === 2 && <CloudRain className="h-5 w-5 text-primary" />}
-              {stepInfo[currentStep - 1].title}
-            </CardTitle>
-            <CardDescription>{stepInfo[currentStep - 1].description}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Step 1: Soil Information */}
-            {currentStep === 1 && (
-              <>
-                <SliderInput
-                  label="Nitrogen (N)"
-                  value={soil.nitrogen}
-                  onChange={(v) => dispatch({ type: 'SET_SOIL_DATA', payload: { nitrogen: v } })}
-                  min={0}
-                  max={400}
-                  unit="ppm"
-                  tooltip="Nitrogen is essential for leaf growth and green color. Low levels may require urea application."
-                />
-                
-                <SliderInput
-                  label="Phosphorus (P)"
-                  value={soil.phosphorus}
-                  onChange={(v) => dispatch({ type: 'SET_SOIL_DATA', payload: { phosphorus: v } })}
-                  min={0}
-                  max={150}
-                  unit="ppm"
-                  tooltip="Phosphorus promotes root development and flowering. Important for energy transfer in plants."
-                />
-                
-                <SliderInput
-                  label="Potassium (K)"
-                  value={soil.potassium}
-                  onChange={(v) => dispatch({ type: 'SET_SOIL_DATA', payload: { potassium: v } })}
-                  min={0}
-                  max={300}
-                  unit="ppm"
-                  tooltip="Potassium strengthens stems and improves disease resistance. Crucial for fruit quality."
-                />
-                
-                <SliderInput
-                  label="Soil pH"
-                  value={soil.pH}
-                  onChange={(v) => dispatch({ type: 'SET_SOIL_DATA', payload: { pH: v } })}
-                  min={3.5}
-                  max={9.0}
-                  step={0.1}
-                  unit=""
-                  tooltip="pH affects nutrient availability. Most crops prefer 6.0-7.0. Acidic soils may need lime."
-                />
-                
-                {/* Add Soil Type Selection */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Label>Soil Type</Label>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Type of soil in your field. Different soil types have different water retention and nutrient characteristics.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                  <Select
-                    value={soil.soilType}
-                    onValueChange={(v) => dispatch({ type: 'SET_SOIL_DATA', payload: { soilType: v } })}
-                  >
-                    <SelectTrigger className={errors.soilType ? 'border-destructive' : ''}>
-                      <SelectValue placeholder="Select soil type..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {SOIL_TYPES.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {type}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errors.soilType && (
-                    <p className="text-sm text-destructive">{errors.soilType}</p>
-                  )}
-                </div>
-                
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Label>Soil Moisture</Label>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Current moisture level in your soil. Affects irrigation recommendations.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                  <Input
-                    type="number"
-                    step="0.0001"
-                    min={0}
-                    max={1}
-                    name="moisture"
-                    value={soil.moisture ?? ""}
-                    onChange={(e) =>
-                      dispatch({ type: 'SET_SOIL_DATA', payload: { moisture: e.target.value === "" ? (undefined as any) : Number(e.target.value) } })
-                    }
-                    placeholder="e.g., 0.72"
-                    required
-                  />
-                </div>
-              </>
-            )}
+      {/* Quick Actions */}
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '32px' }}>
+        <button onClick={handleQuickFill} style={styles.button}>
+          Quick Fill
+        </button>
+        <button onClick={handleReset} style={styles.button}>
+          Reset
+        </button>
+      </div>
 
-            {/* Step 2: Environmental Data */}
-            {currentStep === 2 && (
-              <>
-                <SliderInput
-                  label="Rainfall"
-                  value={environmental.rainfall}
-                  onChange={(v) => dispatch({ type: 'SET_ENVIRONMENTAL_DATA', payload: { rainfall: v } })}
-                  min={0}
-                  max={500}
-                  unit="mm"
-                  tooltip="Average monthly rainfall in your area. Affects crop selection and irrigation needs."
-                />
-                
-                <SliderInput
-                  label="Temperature"
-                  value={environmental.temperature}
-                  onChange={(v) => dispatch({ type: 'SET_ENVIRONMENTAL_DATA', payload: { temperature: v } })}
-                  min={15}
-                  max={40}
-                  unit="°C"
-                  tooltip="Average temperature during growing season. Different crops have different temperature preferences."
-                />
-                
-                <SliderInput
-                  label="Humidity"
-                  value={environmental.humidity}
-                  onChange={(v) => dispatch({ type: 'SET_ENVIRONMENTAL_DATA', payload: { humidity: v } })}
-                  min={0}
-                  max={100}
-                  unit="%"
-                  tooltip="Relative humidity in your area. High humidity can increase disease risk for some crops."
-                />
-              </>
-            )}
+      {/* Progress Indicator */}
+      <ProgressIndicator currentStep={currentStep} />
 
-            {/* Navigation Buttons */}
-            <div className="flex justify-between pt-4">
-              <Button
-                variant="outline"
-                onClick={handleBack}
-                disabled={currentStep === 1}
+      {/* Form */}
+      <div style={styles.card}>
+        <h2 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '24px' }}>
+          {stepInfo[currentStep - 1].title}
+        </h2>
+        
+        {/* Step 1: Soil Information */}
+        {currentStep === 1 && (
+          <>
+            <SliderInput
+              label="Nitrogen (N)"
+              value={soil.nitrogen}
+              onChange={(v) => dispatch({ type: 'SET_SOIL_DATA', payload: { nitrogen: v } })}
+              min={0} max={400} unit="ppm"
+              tooltip=""
+            />
+            <SliderInput
+              label="Phosphorus (P)"
+              value={soil.phosphorus}
+              onChange={(v) => dispatch({ type: 'SET_SOIL_DATA', payload: { phosphorus: v } })}
+              min={0} max={150} unit="ppm"
+              tooltip=""
+            />
+            <SliderInput
+              label="Potassium (K)"
+              value={soil.potassium}
+              onChange={(v) => dispatch({ type: 'SET_SOIL_DATA', payload: { potassium: v } })}
+              min={0} max={300} unit="ppm"
+              tooltip=""
+            />
+            <SliderInput
+              label="Soil pH"
+              value={soil.pH}
+              onChange={(v) => dispatch({ type: 'SET_SOIL_DATA', payload: { pH: v } })}
+              min={3.5} max={9.0} step={0.1} unit=""
+              tooltip=""
+            />
+
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>
+                Soil Type
+              </label>
+              <select
+                value={(soil as any).soil_type ?? (soil as any).soilType ?? ''}
+                onChange={(e) => dispatch({ type: 'SET_SOIL_DATA', payload: { soil_type: e.target.value } as any })}
+                style={styles.select}
               >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back
-              </Button>
-              
-              {currentStep < 2 ? (
-                <Button onClick={handleNext}>
-                  Next
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
-              ) : (
-                <Button 
-                  variant="hero" 
-                  onClick={handleSubmit}
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Analyzing...
-                    </>
-                  ) : (
-                    <>
-                      Get Recommendation
-                      <Sparkles className="h-4 w-4 ml-2" />
-                    </>
-                  )}
-                </Button>
-              )}
+                <option value="">Select soil type...</option>
+                {SOIL_TYPES.map((type) => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+              {errors.soilType && <div style={styles.error}>{errors.soilType}</div>}
             </div>
-          </CardContent>
-        </Card>
+
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>
+                Soil Moisture
+              </label>
+              <input
+                type="number"
+                step="0.0001"
+                min={0}
+                max={1}
+                value={soil.moisture ?? ''}
+                onChange={(e) =>
+                  dispatch({
+                    type: 'SET_SOIL_DATA',
+                    payload: { moisture: e.target.value === '' ? (undefined as any) : Number(e.target.value) },
+                  })
+                }
+                placeholder="0.72"
+                style={styles.input}
+              />
+            </div>
+          </>
+        )}
+
+        {/* Step 2: Environmental Data */}
+        {currentStep === 2 && (
+          <>
+            <SliderInput
+              label="Rainfall"
+              value={environmental.rainfall}
+              onChange={(v) => dispatch({ type: 'SET_ENVIRONMENTAL_DATA', payload: { rainfall: v } })}
+              min={0} max={500} unit="mm"
+              tooltip=""
+            />
+            <SliderInput
+              label="Temperature"
+              value={environmental.temperature}
+              onChange={(v) => dispatch({ type: 'SET_ENVIRONMENTAL_DATA', payload: { temperature: v } })}
+              min={15} max={40} unit="°C"
+              tooltip=""
+            />
+            <SliderInput
+              label="Humidity"
+              value={environmental.humidity}
+              onChange={(v) => dispatch({ type: 'SET_ENVIRONMENTAL_DATA', payload: { humidity: v } })}
+              min={0} max={100} unit="%"
+              tooltip=""
+            />
+          </>
+        )}
+
+        {/* Navigation */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '32px', paddingTop: '24px', borderTop: '1px solid #e5e5e5' }}>
+          <button 
+            onClick={handleBack} 
+            disabled={currentStep === 1}
+            style={{
+              ...styles.button,
+              opacity: currentStep === 1 ? 0.5 : 1,
+              cursor: currentStep === 1 ? 'not-allowed' : 'pointer',
+            }}
+          >
+            ← Back
+          </button>
+
+          {currentStep < 2 ? (
+            <button onClick={handleNext} style={styles.buttonPrimary}>
+              Next →
+            </button>
+          ) : (
+            <button 
+              onClick={handleSubmit} 
+              disabled={isSubmitting}
+              style={{
+                ...styles.buttonPrimary,
+                opacity: isSubmitting ? 0.7 : 1,
+                cursor: isSubmitting ? 'wait' : 'pointer',
+              }}
+            >
+              {isSubmitting ? 'Analyzing...' : 'Get Recommendation'}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -72,7 +72,7 @@ const faqs = [
     answer: 'Absolutely. All data is encrypted and stored securely. We never share individual farm data. Aggregated, anonymized data may be used to improve the model.',
   },
   {
-    question: 'What if the recommendation doesn\'t work for my field?',
+    question: "What if the recommendation doesn't work for my field?",
     answer: 'Agricultural outcomes depend on many factors. If you experience issues, please contact our support team. Your feedback helps improve the system and we can assist with adjustments.',
   },
 ];
@@ -89,97 +89,82 @@ export default function About() {
   return (
     <div className="container py-8 md:py-12">
       {/* Header */}
-      <div className="text-center max-w-3xl mx-auto mb-16">
-        <h1 className="font-display text-3xl md:text-4xl font-bold mb-4">
-          About MICFRS
-        </h1>
-        <p className="text-lg text-muted-foreground">
-          Multi-Input Crop and Fertilizer Recommendation System — empowering Sri Lankan 
+      <div className="max-w-2xl mx-auto mb-12 text-center">
+        <h1 className="text-3xl font-bold mb-3">About MICFRS</h1>
+        <p className="text-muted-foreground">
+          Multi-Input Crop and Fertilizer Recommendation System — empowering Sri Lankan
           farmers with AI-driven agricultural insights since 2024.
         </p>
       </div>
 
       {/* How It Works */}
-      <section id="how-it-works" className="mb-20">
-        <h2 className="font-display text-2xl md:text-3xl font-bold text-center mb-12">
-          How MICFRS Works
-        </h2>
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <section id="how-it-works" className="mb-16">
+        <h2 className="text-2xl font-bold text-center mb-8">How MICFRS Works</h2>
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
           {howItWorks.map((item, i) => (
-            <Card key={i} className="shadow-card relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-1 gradient-primary" />
-              <CardHeader>
-                <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
-                  <item.icon className="h-7 w-7 text-primary" />
-                </div>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-bold text-sm">
+            <Card key={i} className="border">
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
                     {item.step}
                   </span>
-                  <CardTitle className="text-lg">{item.title}</CardTitle>
+                  <item.icon className="h-4 w-4 text-muted-foreground" />
                 </div>
+                <CardTitle className="text-base">{item.title}</CardTitle>
               </CardHeader>
               <CardContent>
-                <CardDescription className="text-sm">
-                  {item.description}
-                </CardDescription>
+                <CardDescription className="text-sm">{item.description}</CardDescription>
               </CardContent>
             </Card>
           ))}
         </div>
-        
-        <div className="text-center mt-10">
+
+        <div className="text-center mt-8">
           <Link to="/input">
-            <Button variant="hero" size="lg">
+            <Button>
               Try It Now
-              <ArrowRight className="h-5 w-5 ml-2" />
+              <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           </Link>
         </div>
       </section>
 
       {/* Video Placeholder */}
-      <section className="mb-20">
-        <Card className="shadow-card overflow-hidden">
+      <section className="mb-16">
+        <Card className="border">
           <div className="aspect-video bg-muted flex items-center justify-center">
             <div className="text-center">
-              <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                <Video className="h-10 w-10 text-primary" />
-              </div>
-              <p className="text-lg font-semibold">Video Tutorial Coming Soon</p>
-              <p className="text-muted-foreground mt-1">
-                Learn how to use MICFRS in under 5 minutes
-              </p>
+              <Video className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+              <p className="font-medium">Video Tutorial Coming Soon</p>
+              <p className="text-sm text-muted-foreground mt-1">Learn how to use MICFRS in under 5 minutes</p>
             </div>
           </div>
         </Card>
       </section>
 
       {/* FAQ Section */}
-      <section id="faq" className="mb-20">
-        <h2 className="font-display text-2xl md:text-3xl font-bold text-center mb-4">
-          Frequently Asked Questions
-        </h2>
-        <p className="text-center text-muted-foreground mb-12 max-w-xl mx-auto">
+      <section id="faq" className="mb-16">
+        <h2 className="text-2xl font-bold text-center mb-3">Frequently Asked Questions</h2>
+        <p className="text-center text-muted-foreground mb-8 max-w-xl mx-auto">
           Find answers to common questions about using MICFRS
         </p>
-        
+
         <div className="max-w-3xl mx-auto">
-          <Accordion type="single" collapsible className="space-y-4">
+          <Accordion type="single" collapsible className="space-y-2">
             {faqs.map((faq, i) => (
-              <AccordionItem 
-                key={i} 
-                value={`faq-${i}`} 
-                className="border rounded-lg px-4 bg-card shadow-sm"
+              <AccordionItem
+                key={i}
+                value={`faq-${i}`}
+                className="border rounded-lg px-4 bg-card"
               >
                 <AccordionTrigger className="hover:no-underline py-4">
                   <div className="flex items-center gap-3 text-left">
-                    <HelpCircle className="h-5 w-5 text-primary shrink-0" />
-                    <span className="font-medium">{faq.question}</span>
+                    <HelpCircle className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="font-medium text-sm">{faq.question}</span>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="pb-4 pl-8">
-                  <p className="text-muted-foreground">{faq.answer}</p>
+                <AccordionContent className="pb-4 pl-7">
+                  <p className="text-sm text-muted-foreground">{faq.answer}</p>
                 </AccordionContent>
               </AccordionItem>
             ))}
@@ -188,20 +173,16 @@ export default function About() {
       </section>
 
       {/* Resources */}
-      <section className="mb-20">
-        <h2 className="font-display text-2xl md:text-3xl font-bold text-center mb-12">
-          Resources
-        </h2>
-        <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-          <Card className="shadow-card hover:shadow-card-hover transition-shadow">
-            <CardHeader>
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
-                <FileText className="h-6 w-6 text-primary" />
-              </div>
-              <CardTitle>Research Paper</CardTitle>
+      <section className="mb-16">
+        <h2 className="text-2xl font-bold text-center mb-8">Resources</h2>
+        <div className="grid md:grid-cols-3 gap-4 max-w-3xl mx-auto">
+          <Card className="border">
+            <CardHeader className="pb-2">
+              <FileText className="h-5 w-5 text-muted-foreground mb-2" />
+              <CardTitle className="text-base">Research Paper</CardTitle>
             </CardHeader>
             <CardContent>
-              <CardDescription className="mb-4">
+              <CardDescription className="mb-4 text-sm">
                 Read the academic paper behind MICFRS methodology and validation.
               </CardDescription>
               <Button variant="outline" size="sm" className="w-full">
@@ -210,15 +191,13 @@ export default function About() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-card hover:shadow-card-hover transition-shadow">
-            <CardHeader>
-              <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center mb-4">
-                <FileText className="h-6 w-6 text-accent" />
-              </div>
-              <CardTitle>API Documentation</CardTitle>
+          <Card className="border">
+            <CardHeader className="pb-2">
+              <FileText className="h-5 w-5 text-muted-foreground mb-2" />
+              <CardTitle className="text-base">API Documentation</CardTitle>
             </CardHeader>
             <CardContent>
-              <CardDescription className="mb-4">
+              <CardDescription className="mb-4 text-sm">
                 Integrate MICFRS with your existing farm management systems.
               </CardDescription>
               <Button variant="outline" size="sm" className="w-full">
@@ -227,15 +206,13 @@ export default function About() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-card hover:shadow-card-hover transition-shadow">
-            <CardHeader>
-              <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center mb-4">
-                <Mail className="h-6 w-6 text-success" />
-              </div>
-              <CardTitle>Newsletter</CardTitle>
+          <Card className="border">
+            <CardHeader className="pb-2">
+              <Mail className="h-5 w-5 text-muted-foreground mb-2" />
+              <CardTitle className="text-base">Newsletter</CardTitle>
             </CardHeader>
             <CardContent>
-              <CardDescription className="mb-4">
+              <CardDescription className="mb-4 text-sm">
                 Get agricultural tips and MICFRS updates in your inbox.
               </CardDescription>
               <Button variant="outline" size="sm" className="w-full">
@@ -247,24 +224,19 @@ export default function About() {
       </section>
 
       {/* Contact Form */}
-      <section id="contact" className="max-w-2xl mx-auto">
-        <Card className="shadow-card">
-          <CardHeader className="text-center">
-            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-              <Mail className="h-6 w-6 text-primary" />
-            </div>
+      <section id="contact" className="max-w-xl mx-auto">
+        <Card className="border">
+          <CardHeader>
             <CardTitle>Contact Support</CardTitle>
-            <CardDescription>
-              Have questions or need help? Send us a message.
-            </CardDescription>
+            <CardDescription>Have questions or need help? Send us a message.</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Name</Label>
-                  <Input 
-                    id="name" 
+                  <Input
+                    id="name"
                     placeholder="Your name"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -273,8 +245,8 @@ export default function About() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
-                  <Input 
-                    id="email" 
+                  <Input
+                    id="email"
                     type="email"
                     placeholder="you@example.com"
                     value={formData.email}
@@ -285,8 +257,8 @@ export default function About() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="message">Message</Label>
-                <Textarea 
-                  id="message" 
+                <Textarea
+                  id="message"
                   placeholder="How can we help you?"
                   rows={4}
                   value={formData.message}

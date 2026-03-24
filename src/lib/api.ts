@@ -5,7 +5,9 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 /**
  * Check if the ML backend is healthy
  */
-export async function checkHealth(): Promise<{ status: string; message: string }> {
+export async function checkHealth(): Promise<{
+  model_version: any; status: string; message: string 
+}> {
   try {
     const response = await fetch(`${API_BASE_URL}/health`, {
       method: 'GET',
