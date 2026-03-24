@@ -11,11 +11,15 @@ export interface SoilData {
   moisture: number;   // numeric (e.g. 0.2 / 0.5 / 0.8) — backend expects a number
 }
 
-// Environmental Data
+// Environmental Data — extended with weather fetch metadata
 export interface EnvironmentalData {
-  rainfall: number;    // 0–500 mm
-  temperature: number; // 15–40 °C
-  humidity: number;    // 0–100 %
+  rainfall: number;      // 0–500 mm  (7-day accumulated)
+  temperature: number;   // 15–40 °C  (7-day mean)
+  humidity: number;      // 0–100 %   (7-day mean)
+  // weather fetch metadata (optional — only present after a successful API fetch)
+  district?: string;              // e.g. "Kandy"
+  weatherFetchedAt?: string;      // ISO string timestamp of last successful fetch
+  weatherSource?: 'api' | 'manual'; // lets the backend / logging know the data origin
 }
 
 // Field / agronomic context
@@ -148,3 +152,57 @@ export const REGIONS = [
   'Uva',
   'Sabaragamuwa',
 ] as const;
+
+// ─── Sri Lanka district data ──────────────────────────────────────────────────
+// 25 administrative districts with province grouping and centroid coordinates.
+// Coordinates are the approximate centre of each district, suitable for a
+// point-based weather API query (Open-Meteo, OWM, etc.).
+
+export interface SriLankaDistrict {
+  name: string;
+  province: string;
+  lat: number;
+  lng: number;
+}
+
+export const SRI_LANKA_DISTRICTS: SriLankaDistrict[] = [
+  // Western Province
+  { name: 'Colombo',       province: 'Western',       lat:  6.927, lng: 79.861 },
+  { name: 'Gampaha',       province: 'Western',       lat:  7.091, lng: 80.001 },
+  { name: 'Kalutara',      province: 'Western',       lat:  6.585, lng: 80.009 },
+  // Central Province
+  { name: 'Kandy',         province: 'Central',       lat:  7.291, lng: 80.636 },
+  { name: 'Matale',        province: 'Central',       lat:  7.470, lng: 80.623 },
+  { name: 'Nuwara Eliya',  province: 'Central',       lat:  6.970, lng: 80.782 },
+  // Southern Province
+  { name: 'Galle',         province: 'Southern',      lat:  6.053, lng: 80.220 },
+  { name: 'Matara',        province: 'Southern',      lat:  5.948, lng: 80.536 },
+  { name: 'Hambantota',    province: 'Southern',      lat:  6.124, lng: 81.119 },
+  // Northern Province
+  { name: 'Jaffna',        province: 'Northern',      lat:  9.668, lng: 80.007 },
+  { name: 'Kilinochchi',   province: 'Northern',      lat:  9.380, lng: 80.401 },
+  { name: 'Mannar',        province: 'Northern',      lat:  8.976, lng: 79.904 },
+  { name: 'Mullaitivu',    province: 'Northern',      lat:  9.267, lng: 80.812 },
+  { name: 'Vavuniya',      province: 'Northern',      lat:  8.751, lng: 80.497 },
+  // Eastern Province
+  { name: 'Ampara',        province: 'Eastern',       lat:  7.297, lng: 81.674 },
+  { name: 'Batticaloa',    province: 'Eastern',       lat:  7.717, lng: 81.700 },
+  { name: 'Trincomalee',   province: 'Eastern',       lat:  8.589, lng: 81.233 },
+  // North Western Province
+  { name: 'Kurunegala',    province: 'North Western', lat:  7.487, lng: 80.363 },
+  { name: 'Puttalam',      province: 'North Western', lat:  8.031, lng: 79.843 },
+  // North Central Province
+  { name: 'Anuradhapura',  province: 'North Central', lat:  8.335, lng: 80.411 },
+  { name: 'Polonnaruwa',   province: 'North Central', lat:  7.940, lng: 81.000 },
+  // Uva Province
+  { name: 'Badulla',       province: 'Uva',           lat:  6.993, lng: 81.055 },
+  { name: 'Monaragala',    province: 'Uva',           lat:  6.872, lng: 81.350 },
+  // Sabaragamuwa Province
+  { name: 'Ratnapura',     province: 'Sabaragamuwa',  lat:  6.693, lng: 80.399 },
+  { name: 'Kegalle',       province: 'Sabaragamuwa',  lat:  7.251, lng: 80.346 },
+] as const;
+
+// Derive province list in display order (preserves insertion order)
+export const SRI_LANKA_PROVINCES: string[] = [
+  ...new Set(SRI_LANKA_DISTRICTS.map((d) => d.province)),
+];
