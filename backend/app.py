@@ -41,6 +41,47 @@ def ensure_initialized():
     _initialized = True
 
 
+def _normalize_prediction_payload(data: dict) -> dict:
+    """
+    Accept legacy payload:
+      { field: {...}, soil: {...}, environmental: {...} }
+    and convert to:
+      { soilParameters: {...}, environmentalFactors: {...} }
+    """
+    if not isinstance(data, dict):
+        return {}
+
+    # Already in new format
+    if "soilParameters" in data and "environmentalFactors" in data:
+        return data
+
+    soil = data.get("soil") if isinstance(data.get("soil"), dict) else {}
+    env = data.get("environmental") if isinstance(data.get("environmental"), dict) else {}
+
+    # map legacy soil keys -> SoilParameters
+    soil_params = {
+        "nitrogen": soil.get("nitrogen", 0.0),
+        "phosphorous": soil.get("phosphorus", soil.get("phosphorous", 0.0)),
+        "potassium": soil.get("potassium", 0.0),
+        "ph": soil.get("pH", soil.get("ph", 0.0)),
+        "carbon": soil.get("carbon", 0.0),
+        "moisture": soil.get("moisture", 0.0),
+        "soil": soil.get("soilType", soil.get("soil", soil.get("soil_type", ""))),
+    }
+
+    # map legacy env keys -> EnvironmentalFactors
+    env_factors = {
+        "temperature": env.get("temperature", 0.0),
+        "rainfall": env.get("rainfall", 0.0),
+        "humidity": env.get("humidity", 0.0),
+    }
+
+    return {
+        "soilParameters": soil_params,
+        "environmentalFactors": env_factors,
+    }
+
+
 @app.before_request
 def before_request():
     ensure_initialized()
@@ -88,7 +129,7 @@ def predict():
         if not data:
             return jsonify({"success": False, "error": "No JSON payload provided"}), 400
 
-        # ✅ Pydantic v2
+        data = _normalize_prediction_payload(data)
         pred_request = PredictionRequest.model_validate(data)
 
         response = predictor.predict(pred_request)
@@ -126,6 +167,7 @@ def predict_crop_only():
         if not data:
             return jsonify({"success": False, "error": "No JSON payload provided"}), 400
 
+        data = _normalize_prediction_payload(data)
         pred_request = PredictionRequest.model_validate(data)
 
         features_df = FeatureMapper.extract_features(pred_request)
@@ -170,11 +212,13 @@ def predict_fertilizer_only():
         if not data:
             return jsonify({"success": False, "error": "No JSON payload provided"}), 400
 
+        data = _normalize_prediction_payload(data)
         pred_request = PredictionRequest.model_validate(data)
 
         features_df = FeatureMapper.extract_features(pred_request)
         fert_label, fert_conf, fert_top_k = predictor.predict_fertilizer(features_df)
-        fert_meta = predictor.get_fertilizer_metadata(fert_label, pred_request.field.landSize)
+
+        fert_meta = predictor.get_fertilizer_metadata(fert_label)
 
         remark = predictor.remark_map.get(fert_label, "") if predictor.remark_map else ""
 

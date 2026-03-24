@@ -1,83 +1,115 @@
+import { ReactNode } from 'react';
+
 // Soil Information
 export interface SoilData {
-  nitrogen: number; // 0-400 ppm
-  phosphorus: number; // 0-150 ppm
-  potassium: number; // 0-300 ppm
-  pH: number; // 3.5-9.0
-  moisture: 'low' | 'medium' | 'high';
+  nitrogen: number;   // 0–400 ppm
+  phosphorus: number; // 0–150 ppm
+  potassium: number;  // 0–300 ppm
+  carbon: number;
+  pH: number;         // 3.5–9.0
+  soilType: string;
+  moisture: number;   // numeric (e.g. 0.2 / 0.5 / 0.8) — backend expects a number
 }
 
 // Environmental Data
 export interface EnvironmentalData {
-  rainfall: number; // 0-500 mm
-  temperature: number; // 15-40 °C
-  humidity: number; // 0-100 %
+  rainfall: number;    // 0–500 mm
+  temperature: number; // 15–40 °C
+  humidity: number;    // 0–100 %
 }
 
-// Complete Form Data
-export type FormData = {
-  field: any;
-  soil: any;
-  soilParameters: {
-    nitrogen: number;
-    phosphorous: number;
-    potassium: number;
-    ph: number;
-    carbon: number;
-    moisture: number;
-    soil: string;
-  };
-  environmentalFactors: {
-    temperature: number;
-    rainfall: number;
-    humidity: number;
-  };
-};
+// Field / agronomic context
+export interface FieldData {
+  previousCrop: string;
+  irrigationType: string;
+  landSize: number;
+  region: string;
+}
+
+// Complete Form Data (single canonical definition)
+export interface FormData {
+  soil: SoilData;
+  environmental: EnvironmentalData;
+  field: FieldData;
+}
 
 // Feature Importance for explainability
 export interface FeatureImportance {
   feature: string;
-  impact: number; // -1 to 1
+  impact: number; // roughly –1 to 1
   explanation: string;
 }
 
-// Crop Recommendation
-export interface CropRecommendation {
+// Top-K crop entry returned by backend
+export interface TopKCrop {
   label: string;
-  crop: string;
-  confidence: number; // 0-100
-  expectedYieldMin: number;
-  expectedYieldMax: number;
-  yieldUnit: string;
-  marketPriceTrend: 'rising' | 'stable' | 'falling';
-  growingSeasonStart: string;
-  growingSeasonEnd: string;
-  icon: string;
+  modelProb: number;
+  prob: number;
+  ruleScore: number;
 }
 
-// Fertilizer Recommendation
+// Crop Recommendation — matches backend shape
+export interface CropRecommendation {
+  label: string;             // primary display name
+  /** @deprecated use label */
+  crop?: string;
+  confidence: number;        // 0–100 (already multiplied in convertApiResponse)
+  suitabilityScore?: number;
+  modelConfidence?: number;
+  expectedYieldMin?: number;
+  expectedYieldMax?: number;
+  yieldUnit?: string;
+  marketPriceTrend?: 'rising' | 'stable' | 'falling';
+  growingSeasonStart?: string;
+  growingSeasonEnd?: string;
+  icon?: string;
+  top_k?: TopKCrop[];
+}
+
+// Top-K fertilizer entry returned by backend
+export interface TopKFertilizer {
+  label: string;
+  prob: number;
+}
+
+// Fertilizer Recommendation — matches backend shape
 export interface FertilizerRecommendation {
-  label: ReactNode;
-  type: string;
+  label: string;             // display name (e.g. "General Purpose Fertilizer")
+  type?: string;
   components: string[];
-  quantityPerAcre: string;
   applicationSchedule: { week: number; action: string }[];
-  confidence: number; // 0-100
-  estimatedCost: number;
-  costUnit: string;
-  environmentalImpact: 'low' | 'medium' |'moderate'| 'high';
+  baseRatePerAcre?: number;  // kg/acre
+  pricePerKg?: number;
+  costUnit?: string;
+  confidence: number;        // 0–100
+  suitabilityScore?: number;
+  modelConfidence?: number;
+  environmentalImpact?: 'low' | 'medium' | 'moderate' | 'high';
+  top_k?: TopKFertilizer[];
+  /** @deprecated keep for backwards compatibility */
+  quantityPerAcre?: string;
+  /** @deprecated keep for backwards compatibility */
+  estimatedCost?: number;
 }
 
-// Complete Recommendation
+// Warning object returned by backend
+export interface RecommendationWarning {
+  type: string;
+  message: string;
+}
+
+// Complete Recommendation stored in app state
 export interface Recommendation {
   id: string;
   timestamp: Date;
-  inputData: FormData; // This is the key field that was missing!
+  inputData: FormData;
   crop: CropRecommendation;
   fertilizer: FertilizerRecommendation;
   featureImportance: FeatureImportance[];
   alternativeCrops: { crop: string; confidence: number; reason: string }[];
   riskFactors: { factor: string; mitigation: string }[];
+  warnings?: RecommendationWarning[];
+  remark?: string;
 }
 
 // Dashboard Statistics
@@ -90,29 +122,29 @@ export interface DashboardStats {
 
 // Soil types for Sri Lanka
 export const SOIL_TYPES = [
-  'Loamy Soil',
-  'Peaty Soil',
-  'Acidic Soil',
-  'Neutral Soil',
-  'Alkaline Soil',
+  'Loamy',
+  'Peaty',
+  'Acidic',
+  'Neutral',
+  'Alkaline',
+  'Sandy',
+  'Clay',
 ] as const;
 
-// Optional compatibility only (remove once all imports are cleaned up)
 export const MOISTURE_LEVELS = [
-  { value: 0.2, label: "Low (Dry)" },
-  { value: 0.5, label: "Medium (Moist)" },
-  { value: 0.8, label: "High (Wet)" },
+  { value: 0.2, label: 'Low (Dry)' },
+  { value: 0.5, label: 'Medium (Moist)' },
+  { value: 0.8, label: 'High (Wet)' },
 ] as const;
 
-// Compatibility export (prefer removing imports instead)
 export const REGIONS = [
-  "Western",
-  "Central",
-  "Southern",
-  "Northern",
-  "Eastern",
-  "North Western",
-  "North Central",
-  "Uva",
-  "Sabaragamuwa",
+  'Western',
+  'Central',
+  'Southern',
+  'Northern',
+  'Eastern',
+  'North Western',
+  'North Central',
+  'Uva',
+  'Sabaragamuwa',
 ] as const;

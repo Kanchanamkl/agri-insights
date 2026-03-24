@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useReducer, ReactNode } from 'react';
-import { FormData, Recommendation, SoilData, EnvironmentalData, FieldData } from '@/types';
+import type { FormData, Recommendation, SoilData, EnvironmentalData, FieldData } from '@/types';
 
-// Initial form data
+// ─── Default form values ──────────────────────────────────────────────────────
+
 const initialSoilData: SoilData = {
   nitrogen: 100,
   phosphorus: 50,
@@ -9,7 +10,7 @@ const initialSoilData: SoilData = {
   carbon: 30,
   pH: 6.5,
   soilType: 'Loamy',
-  moisture: 'medium',
+  moisture: 0.5, // numeric; 0.5 = medium/moist
 };
 
 const initialEnvironmentalData: EnvironmentalData = {
@@ -31,7 +32,8 @@ const initialFormData: FormData = {
   field: initialFieldData,
 };
 
-// App State
+// ─── State shape ──────────────────────────────────────────────────────────────
+
 interface AppState {
   formData: FormData;
   currentStep: number;
@@ -50,7 +52,8 @@ const initialState: AppState = {
   demoMode: false,
 };
 
-// Actions
+// ─── Actions ──────────────────────────────────────────────────────────────────
+
 type Action =
   | { type: 'SET_SOIL_DATA'; payload: Partial<SoilData> }
   | { type: 'SET_ENVIRONMENTAL_DATA'; payload: Partial<EnvironmentalData> }
@@ -63,7 +66,8 @@ type Action =
   | { type: 'TOGGLE_DARK_MODE' }
   | { type: 'TOGGLE_DEMO_MODE' };
 
-// Reducer
+// ─── Reducer ──────────────────────────────────────────────────────────────────
+
 function appReducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case 'SET_SOIL_DATA':
@@ -74,6 +78,7 @@ function appReducer(state: AppState, action: Action): AppState {
           soil: { ...state.formData.soil, ...action.payload },
         },
       };
+
     case 'SET_ENVIRONMENTAL_DATA':
       return {
         ...state,
@@ -82,6 +87,7 @@ function appReducer(state: AppState, action: Action): AppState {
           environmental: { ...state.formData.environmental, ...action.payload },
         },
       };
+
     case 'SET_FIELD_DATA':
       return {
         ...state,
@@ -90,53 +96,42 @@ function appReducer(state: AppState, action: Action): AppState {
           field: { ...state.formData.field, ...action.payload },
         },
       };
+
     case 'SET_STEP':
       return { ...state, currentStep: action.payload };
+
     case 'RESET_FORM':
       return { ...state, formData: initialFormData, currentStep: 1 };
+
     case 'QUICK_FILL':
+      return { ...state, formData: initialFormData };
+
+    case 'ADD_RECOMMENDATION': {
+      // Guarantee every stored recommendation has an id (Recommendations.tsx relies on it)
+      const rec = action.payload;
+      const withId: Recommendation = rec.id ? rec : { ...rec, id: String(Date.now()) };
       return {
         ...state,
-        formData: {
-          soil: {
-            nitrogen: 100,
-            phosphorus: 50,
-            potassium: 100,
-            carbon: 30,
-            pH: 6.5,
-            soilType: 'Loamy',
-            moisture: 'medium',
-          },
-          environmental: {
-            rainfall: 200,
-            temperature: 28,
-            humidity: 70,
-          },
-          field: {
-            previousCrop: 'Rice',
-            irrigationType: 'rainfed',
-            landSize: 1,
-            region: 'Southern',
-          },
-        },
+        recommendations: [withId, ...state.recommendations].slice(0, 20),
       };
-    case 'ADD_RECOMMENDATION':
-      return {
-        ...state,
-        recommendations: [action.payload, ...state.recommendations].slice(0, 20),
-      };
+    }
+
     case 'SET_LOADING':
       return { ...state, isLoading: action.payload };
+
     case 'TOGGLE_DARK_MODE':
       return { ...state, isDarkMode: !state.isDarkMode };
+
     case 'TOGGLE_DEMO_MODE':
       return { ...state, demoMode: !state.demoMode };
+
     default:
       return state;
   }
 }
 
-// Context
+// ─── Context ──────────────────────────────────────────────────────────────────
+
 interface AppContextType {
   state: AppState;
   dispatch: React.Dispatch<Action>;
@@ -144,11 +139,9 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// Provider
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
 
-  // Apply dark mode class to document
   React.useEffect(() => {
     if (state.isDarkMode) {
       document.documentElement.classList.add('dark');
@@ -164,11 +157,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// Hook
 export function useApp() {
-  const context = useContext(AppContext);
-  if (!context) {
-    throw new Error('useApp must be used within an AppProvider');
-  }
-  return context;
+  const ctx = useContext(AppContext);
+  if (!ctx) throw new Error('useApp must be used within an AppProvider');
+  return ctx;
 }

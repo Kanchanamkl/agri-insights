@@ -187,6 +187,12 @@ export default function Recommendations() {
     return Number.isFinite(n) ? n.toLocaleString() : 'N/A';
   };
 
+  const toPercent = (v: unknown) => {
+    const n = typeof v === 'number' ? v : Number(v);
+    if (!Number.isFinite(n)) return 0;
+    return n <= 1 ? Math.round(n * 100) : Math.round(n);
+  };
+
   if (!recommendation) {
     return (
       <div style={{ textAlign: 'center', padding: '80px 24px' }}>
@@ -202,17 +208,21 @@ export default function Recommendations() {
   }
 
   const { crop, fertilizer, featureImportance, alternativeCrops, riskFactors } = recommendation;
-  const warnings =
-    'warnings' in recommendation && Array.isArray((recommendation as { warnings?: unknown }).warnings)
-      ? ((recommendation as { warnings: { type?: string; message: string }[] }).warnings)
-      : undefined;
+  const warnings = Array.isArray((recommendation as any)?.warnings)
+    ? (recommendation as any).warnings
+    : [];
 
-  const showCropExtras = !!crop.expectedYieldMin || !!crop.marketPriceTrend;
+  const cropPercent = toPercent(crop?.confidence);
+  const fertPercent = toPercent(fertilizer?.confidence);
+
+  const showCropExtras =
+    crop?.expectedYieldMin != null || crop?.expectedYieldMax != null || crop?.marketPriceTrend != null;
 
   const handleShare = () => {
+    const cropLabel = crop?.label ?? 'Crop';
     if (navigator.share) {
       navigator.share({
-        title: `MICFRS Recommendation: ${crop.label || crop.crop}`,
+        title: `MICFRS Recommendation: ${cropLabel}`,
         text: 'Check out my personalized crop recommendation from MICFRS!',
         url: window.location.href,
       });
@@ -223,6 +233,7 @@ export default function Recommendations() {
   };
 
   const handleDownload = () => {
+    const cropLabel = crop?.label ?? 'Crop';
     const reportData = {
       generatedAt: recommendation.timestamp?.toLocaleString() || new Date().toLocaleString(),
       cropRecommendation: crop,
@@ -236,7 +247,7 @@ export default function Recommendations() {
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `MICFRS_Recommendation_${crop.crop || crop.label}_${Date.now()}.json`;
+    link.download = `MICFRS_Recommendation_${cropLabel}_${Date.now()}.json`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -266,14 +277,14 @@ export default function Recommendations() {
       </div>
 
       {/* Warnings */}
-      {warnings && warnings.length > 0 && (
+      {warnings.length > 0 && (
         <div style={{ marginBottom: '24px' }}>
-          {warnings.map((warning, i) => (
+          {warnings.map((warning: any, i: number) => (
             <div key={i} style={styles.warning}>
               <div style={styles.warningTitle}>
-                ⚠ {warning.type?.replace(/_/g, ' ').toLowerCase() || 'Warning'}
+                ⚠ {(warning?.type ?? 'WARNING').replace(/_/g, ' ').toLowerCase()}
               </div>
-              <div style={styles.warningMessage}>{warning.message}</div>
+              <div style={styles.warningMessage}>{String(warning?.message ?? '')}</div>
             </div>
           ))}
         </div>
@@ -287,7 +298,7 @@ export default function Recommendations() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
               <span style={{ fontSize: '32px' }}>{crop.icon || '🌱'}</span>
               <div>
-                <div style={styles.cardTitle}>{crop.crop || crop.label}</div>
+                <div style={styles.cardTitle}>{crop?.label ?? 'N/A'}</div>
                 <div style={styles.cardDescription}>Recommended Crop</div>
               </div>
             </div>
@@ -297,11 +308,11 @@ export default function Recommendations() {
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                 <span style={{ fontSize: '13px', color: '#666' }}>Suitability Score</span>
                 <span style={{ fontSize: '14px', fontWeight: 600, color: '#2c5f2d' }}>
-                  {Math.round(crop.confidence)}%
+                  {cropPercent}%
                 </span>
               </div>
               <div style={styles.progressBar}>
-                <div style={{ ...styles.progressFill, width: `${crop.confidence}%` }} />
+                <div style={{ ...styles.progressFill, width: `${cropPercent}%` }} />
               </div>
             </div>
 
@@ -310,7 +321,7 @@ export default function Recommendations() {
                 <div style={styles.statBox}>
                   <div style={{ fontSize: '11px', color: '#666', marginBottom: '4px' }}>Expected Yield</div>
                   <div style={{ fontSize: '14px', fontWeight: 500 }}>
-                    {crop.expectedYieldMin} – {crop.expectedYieldMax}
+                    {crop?.expectedYieldMin ?? 'N/A'} – {crop?.expectedYieldMax ?? 'N/A'}
                   </div>
                   <div style={{ fontSize: '10px', color: '#666' }}>{crop.yieldUnit}</div>
                 </div>
@@ -323,7 +334,7 @@ export default function Recommendations() {
               </div>
             ) : (
               <div style={{ ...styles.statBox, fontSize: '12px', color: '#666' }}>
-                ℹ️ Agronomic yield and season data are not available for this specific variety.
+                ℹ️ Agronomic yield and season data are not available for this crop.
               </div>
             )}
           </div>
@@ -335,7 +346,9 @@ export default function Recommendations() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
               <span style={{ fontSize: '24px' }}>🧪</span>
               <div>
-                <div style={styles.cardTitle}>Fertilizer Plan</div>
+          
+                <div style={styles.cardTitle}>{fertilizer?.label ?? 'N/A'}</div>
+              
                 <div style={styles.cardDescription}>Targeted Soil Nutrition</div>
               </div>
             </div>
@@ -348,34 +361,27 @@ export default function Recommendations() {
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                 <span style={{ fontSize: '13px', color: '#666' }}>Fertilizer Match Score</span>
                 <span style={{ fontSize: '14px', fontWeight: 600, color: '#2c5f2d' }}>
-                  {Math.round(fertilizer.confidence)}%
+                  {fertPercent}%
                 </span>
               </div>
               <div style={styles.progressBar}>
-                <div style={{ ...styles.progressFill, width: `${fertilizer.confidence}%` }} />
+                <div style={{ ...styles.progressFill, width: `${fertPercent}%` }} />
               </div>
             </div>
 
             <div style={styles.statBox}>
               <div style={{ fontSize: '11px', color: '#666', marginBottom: '4px' }}>Recommended Fertilizer</div>
-              <div style={{ fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>{fertilizer.label}</div>
+              <div style={{ fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>
+                {fertilizer?.label ?? 'N/A'}
+              </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                {fertilizer.components?.map((component: string, i: number) => (
-                  <span key={i} style={styles.badge}>{component}</span>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '12px' }}>
-              <div style={styles.statBox}>
-                <div style={{ fontSize: '11px', color: '#666', marginBottom: '4px' }}>Total Quantity</div>
-                <div style={{ fontSize: '14px', fontWeight: 500 }}>{fertilizer.quantityPerAcre ?? 'N/A'}</div>
-              </div>
-              <div style={styles.statBox}>
-                <div style={{ fontSize: '11px', color: '#666', marginBottom: '4px' }}>Est. Cost</div>
-                <div style={{ fontSize: '14px', fontWeight: 500 }}>
-                  {formatCurrency(fertilizer.estimatedCost)} {fertilizer.costUnit ?? ''}
-                </div>
+                {Array.isArray(fertilizer?.components) && fertilizer.components.length > 0 ? (
+                  fertilizer.components.map((component: string, i: number) => (
+                    <span key={i} style={styles.badge}>{component}</span>
+                  ))
+                ) : (
+                  <span style={styles.badgeSecondary}>No component data</span>
+                )}
               </div>
             </div>
           </div>
@@ -388,14 +394,20 @@ export default function Recommendations() {
           <div style={styles.cardTitle}>Why This Recommendation?</div>
           <div style={styles.cardDescription}>Environmental and soil factors influencing this result</div>
         </div>
-        {featureImportance?.map((item, i) => (
-          <FeatureImportanceBar
-            key={i}
-            feature={item.feature}
-            impact={item.impact}
-            explanation={item.explanation}
-          />
-        ))}
+        {Array.isArray(featureImportance) && featureImportance.length > 0 ? (
+          featureImportance.map((item: any, i: number) => (
+            <FeatureImportanceBar
+              key={i}
+              feature={String(item?.feature ?? '')}
+              impact={Number(item?.impact ?? 0)}
+              explanation={String(item?.explanation ?? '')}
+            />
+          ))
+        ) : (
+          <div style={{ ...styles.statBox, fontSize: '12px', color: '#666' }}>
+            ℹ️ No feature-importance data available.
+          </div>
+        )}
       </div>
 
       {/* Expandable Sections */}
