@@ -111,8 +111,27 @@ const styles = {
     fontWeight: 500,
     marginBottom: '8px',
   } as React.CSSProperties,
+  helperText: {
+    fontSize: '12px',
+    color: '#6b7280',
+    marginTop: '4px',
+  } as React.CSSProperties,
   fieldGroup: {
     marginBottom: '24px',
+  },
+  sectionDivider: {
+    borderTop: '1px solid #e5e5e5',
+    marginTop: '8px',
+    marginBottom: '24px',
+    paddingTop: '20px',
+  },
+  sectionLabel: {
+    fontSize: '12px',
+    fontWeight: 600,
+    color: '#6b7280',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.06em',
+    marginBottom: '16px',
   },
 };
 
@@ -261,7 +280,6 @@ function EnvironmentalStep() {
   );
 
   const handleProvinceChange = (province: string) => {
-    // When province changes, clear the district selection too
     dispatch({ type: 'CLEAR_WEATHER_METADATA' });
     dispatch({
       type: 'SET_SELECTED_DISTRICT',
@@ -321,7 +339,7 @@ function EnvironmentalStep() {
     }
   }, [weather.selectedDistrict, dispatch, toast]);
 
-  // Auto-fetch when a district is selected (user-friendly: no extra button click needed)
+  // Auto-fetch when a district is selected
   useEffect(() => {
     if (weather.selectedDistrict && weather.status === 'idle') {
       handleFetchWeather(false);
@@ -566,6 +584,10 @@ export default function InputForm() {
       if (soil.potassium < 0 || soil.potassium > 300)     newErrors.potassium   = 'Must be 0–300 ppm';
       if (soil.pH < 3.5 || soil.pH > 9.0)                 newErrors.pH          = 'Must be 3.5–9.0';
       if (!soil.soilType)                                  newErrors.soilType    = 'Please select a soil type';
+      // Carbon is required by backend (SoilParameters model)
+      const carbon = (soil as any).carbon;
+      if (carbon == null || carbon === '')                 newErrors.carbon      = 'Required';
+      else if (Number(carbon) < 0 || Number(carbon) > 10) newErrors.carbon      = 'Must be 0–10 %';
     }
 
     if (step === 2) {
@@ -677,6 +699,9 @@ export default function InputForm() {
         {/* ── Step 1: Soil ──────────────────────────────────────── */}
         {currentStep === 1 && (
           <>
+            {/* ── NPK Section ── */}
+            <div style={styles.sectionLabel}>Macronutrients</div>
+
             <SliderInput
               label="Nitrogen (N)"
               value={soil.nitrogen}
@@ -695,12 +720,51 @@ export default function InputForm() {
               onChange={(v) => dispatch({ type: 'SET_SOIL_DATA', payload: { potassium: v } })}
               min={0} max={300} unit="ppm"
             />
+
+            {/* ── Soil Properties Section ── */}
+            <div style={styles.sectionDivider}>
+              <div style={styles.sectionLabel}>Soil Properties</div>
+            </div>
+
             <SliderInput
               label="Soil pH"
               value={soil.pH}
               onChange={(v) => dispatch({ type: 'SET_SOIL_DATA', payload: { pH: v } })}
               min={3.5} max={9.0} step={0.1} unit=""
             />
+
+            {/* Organic Carbon — required by backend SoilParameters model */}
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>
+                Organic Carbon
+                <span style={{ color: '#dc2626', marginLeft: '2px' }}>*</span>
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min={0}
+                max={10}
+                value={(soil as any).carbon ?? ''}
+                onChange={(e) =>
+                  dispatch({
+                    type: 'SET_SOIL_DATA',
+                    payload: {
+                      carbon:
+                        e.target.value === '' ? (undefined as any) : Number(e.target.value),
+                    },
+                  })
+                }
+                placeholder="e.g. 1.20"
+                style={{
+                  ...styles.input,
+                  borderColor: errors.carbon ? '#dc2626' : '#d4d4d4',
+                }}
+              />
+              <div style={styles.helperText}>
+                Soil organic carbon content (0–10 %). Typical agricultural soils: 0.5–3 %.
+              </div>
+              {errors.carbon && <div style={styles.error}>{errors.carbon}</div>}
+            </div>
 
             <div style={styles.fieldGroup}>
               <label style={styles.label}>Soil Type</label>
@@ -709,7 +773,10 @@ export default function InputForm() {
                 onChange={(e) =>
                   dispatch({ type: 'SET_SOIL_DATA', payload: { soil_type: e.target.value } as any })
                 }
-                style={styles.select}
+                style={{
+                  ...styles.select,
+                  borderColor: errors.soilType ? '#dc2626' : '#d4d4d4',
+                }}
               >
                 <option value="">Select soil type...</option>
                 {SOIL_TYPES.map((type) => (
@@ -719,13 +786,14 @@ export default function InputForm() {
               {errors.soilType && <div style={styles.error}>{errors.soilType}</div>}
             </div>
 
+            {/* Soil Moisture */}
             <div style={styles.fieldGroup}>
               <label style={styles.label}>Soil Moisture</label>
               <input
                 type="number"
-                step="0.0001"
+                step="0.01"
                 min={0}
-                max={1}
+                max={100}
                 value={soil.moisture ?? ''}
                 onChange={(e) =>
                   dispatch({
@@ -736,9 +804,12 @@ export default function InputForm() {
                     },
                   })
                 }
-                placeholder="0.72"
+                placeholder="e.g. 60"
                 style={styles.input}
               />
+              <div style={styles.helperText}>
+                Volumetric water content (0–100 %). Leave blank to use model default.
+              </div>
             </div>
           </>
         )}

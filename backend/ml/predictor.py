@@ -234,6 +234,7 @@ class Predictor:
 
     def load_models(self) -> bool:
         try:
+            logger.info("Checking required model artifacts ...")    
             required = {
                 "crop_model":       config.CROP_MODEL_PATH,
                 "fert_model":       config.FERTILIZER_MODEL_PATH,

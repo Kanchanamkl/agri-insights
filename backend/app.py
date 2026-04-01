@@ -29,6 +29,7 @@ def ensure_initialized():
 
     # Load models
     if not predictor.models_loaded:
+        logger.info("Loading models...")
         predictor.load_models()
 
     # Connect DB (non-fatal if fails)

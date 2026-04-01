@@ -84,6 +84,31 @@ const styles: Record<string, CSSProperties> = {
     fontSize: '12px',
     color: '#b45309',
   },
+  remark: {
+    padding: '14px 16px',
+    border: '1px solid #bfdbfe',
+    borderRadius: '8px',
+    backgroundColor: '#eff6ff',
+    marginBottom: '24px',
+    fontSize: '13px',
+    color: '#1e40af',
+    lineHeight: 1.6,
+  },
+  remarkIcon: {
+    fontSize: '16px',
+    marginRight: '8px',
+  },
+  explanationBox: {
+    padding: '12px 14px',
+    border: '1px solid #e5e5e5',
+    borderRadius: '6px',
+    backgroundColor: '#fafafa',
+    fontSize: '13px',
+    color: '#374151',
+    lineHeight: 1.7,
+    marginTop: '12px',
+    fontStyle: 'italic',
+  },
   accordionItem: {
     border: '1px solid #e5e5e5',
     borderRadius: '8px',
@@ -102,6 +127,7 @@ const styles: Record<string, CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
+    fontFamily: 'inherit',
   },
   accordionContent: {
     padding: '16px',
@@ -130,6 +156,21 @@ const styles: Record<string, CSSProperties> = {
     backgroundColor: '#fafafa',
     borderRadius: '6px',
     border: '1px solid #e5e5e5',
+  },
+  infoRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '8px 0',
+    borderBottom: '1px solid #f0f0f0',
+    fontSize: '13px',
+  },
+  infoLabel: {
+    color: '#6b7280',
+  },
+  infoValue: {
+    fontWeight: 500,
+    color: '#111827',
   },
 };
 
@@ -168,6 +209,16 @@ function FeatureImportanceBar({
   );
 }
 
+/** Small confidence bar used inside top-k tables */
+function MiniBar({ value, max = 100 }: { value: number; max?: number }) {
+  const pct = Math.min((value / max) * 100, 100);
+  return (
+    <div style={{ ...styles.progressBar, marginBottom: 0, width: '80px', display: 'inline-block', verticalAlign: 'middle' }}>
+      <div style={{ ...styles.progressFill, width: `${pct}%` }} />
+    </div>
+  );
+}
+
 export default function Recommendations() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -180,11 +231,6 @@ export default function Recommendations() {
     setOpenSections(prev =>
       prev.includes(section) ? prev.filter(s => s !== section) : [...prev, section]
     );
-  };
-
-  const formatCurrency = (value: unknown) => {
-    const n = typeof value === 'number' ? value : Number(value);
-    return Number.isFinite(n) ? n.toLocaleString() : 'N/A';
   };
 
   const toPercent = (v: unknown) => {
@@ -211,6 +257,7 @@ export default function Recommendations() {
   const warnings = Array.isArray((recommendation as any)?.warnings)
     ? (recommendation as any).warnings
     : [];
+  const remark: string = (recommendation as any)?.remark ?? '';
 
   const cropPercent = toPercent(crop?.confidence);
   const fertPercent = toPercent(fertilizer?.confidence);
@@ -218,19 +265,18 @@ export default function Recommendations() {
   const showCropExtras =
     crop?.expectedYieldMin != null || crop?.expectedYieldMax != null || crop?.marketPriceTrend != null;
 
-  const handleShare = () => {
-    const cropLabel = crop?.label ?? 'Crop';
-    if (navigator.share) {
-      navigator.share({
-        title: `MICFRS Recommendation: ${cropLabel}`,
-        text: 'Check out my personalized crop recommendation from MICFRS!',
-        url: window.location.href,
-      });
-    } else {
-      navigator.clipboard.writeText(window.location.href);
-      alert('Link copied to clipboard!');
-    }
-  };
+  const hasGrowingSeason =
+    crop?.growingSeasonStart && crop?.growingSeasonStart !== 'Season-dependent' &&
+    crop?.growingSeasonEnd   && crop?.growingSeasonEnd   !== 'Season-dependent';
+
+  const cropExplanation: string   = (crop as any)?.explanation ?? '';
+  const fertExplanation: string   = (fertilizer as any)?.explanation ?? '';
+  const fertTopK: any[]           = (fertilizer as any)?.top_k ?? [];
+  const cropTopK: any[]           = (crop as any)?.top_k ?? [];
+
+  const fertBaseRate: number | undefined = (fertilizer as any)?.baseRatePerAcre;
+  const fertPricePerKg: number | undefined = (fertilizer as any)?.pricePerKg;
+  const fertCostUnit: string = (fertilizer as any)?.costUnit ?? 'LKR';
 
   const handleDownload = () => {
     const cropLabel = crop?.label ?? 'Crop';
@@ -241,6 +287,7 @@ export default function Recommendations() {
       featureImportance,
       alternativeCrops,
       riskFactors,
+      remark,
     };
     const dataStr = JSON.stringify(reportData, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
@@ -257,8 +304,8 @@ export default function Recommendations() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <button 
-            onClick={() => navigate(-1)} 
+          <button
+            onClick={() => navigate(-1)}
             style={{ ...styles.button, marginBottom: '8px' }}
           >
             ← Back
@@ -267,9 +314,6 @@ export default function Recommendations() {
           <p style={{ fontSize: '14px', color: '#666' }}>Based on your field conditions</p>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          {/* <button onClick={handleShare} style={styles.button}>
-            Share
-          </button> */}
           <button onClick={handleDownload} style={styles.button}>
             Export
           </button>
@@ -287,6 +331,14 @@ export default function Recommendations() {
               <div style={styles.warningMessage}>{String(warning?.message ?? '')}</div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Remark — agronomist note from remark_map */}
+      {remark && (
+        <div style={styles.remark}>
+          <span style={styles.remarkIcon}>📋</span>
+          <strong>Agronomist Note: </strong>{remark}
         </div>
       )}
 
@@ -337,6 +389,28 @@ export default function Recommendations() {
                 ℹ️ Agronomic yield and season data are not available for this crop.
               </div>
             )}
+
+            {/* Growing Season */}
+            {hasGrowingSeason && (
+              <div style={{ ...styles.statBox, marginTop: '12px' }}>
+                <div style={{ fontSize: '11px', color: '#666', marginBottom: '6px' }}>🌿 Growing Season</div>
+                <div style={styles.infoRow}>
+                  <span style={styles.infoLabel}>Start</span>
+                  <span style={styles.infoValue}>{crop.growingSeasonStart}</span>
+                </div>
+                <div style={{ ...styles.infoRow, borderBottom: 'none' }}>
+                  <span style={styles.infoLabel}>End</span>
+                  <span style={styles.infoValue}>{crop.growingSeasonEnd}</span>
+                </div>
+              </div>
+            )}
+
+            {/* SHAP natural-language explanation */}
+            {cropExplanation && (
+              <div style={styles.explanationBox}>
+                {cropExplanation}
+              </div>
+            )}
           </div>
         </div>
 
@@ -346,9 +420,7 @@ export default function Recommendations() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
               <span style={{ fontSize: '24px' }}>🧪</span>
               <div>
-          
                 <div style={styles.cardTitle}>{fertilizer?.label ?? 'N/A'}</div>
-              
                 <div style={styles.cardDescription}>Targeted Soil Nutrition</div>
               </div>
             </div>
@@ -370,11 +442,8 @@ export default function Recommendations() {
             </div>
 
             <div style={styles.statBox}>
-              <div style={{ fontSize: '11px', color: '#666', marginBottom: '4px' }}>Recommended Fertilizer</div>
-              <div style={{ fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>
-                {fertilizer?.label ?? 'N/A'}
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              <div style={{ fontSize: '11px', color: '#666', marginBottom: '4px' }}>Components</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
                 {Array.isArray(fertilizer?.components) && fertilizer.components.length > 0 ? (
                   fertilizer.components.map((component: string, i: number) => (
                     <span key={i} style={styles.badge}>{component}</span>
@@ -384,6 +453,45 @@ export default function Recommendations() {
                 )}
               </div>
             </div>
+
+            {/* Cost & rate details */}
+            {/* {(fertBaseRate != null || fertPricePerKg != null) && (
+              <div style={{ ...styles.statBox, marginTop: '12px' }}>
+                <div style={{ fontSize: '11px', color: '#666', marginBottom: '6px' }}>💰 Application & Cost</div>
+                {fertBaseRate != null && (
+                  <div style={styles.infoRow}>
+                    <span style={styles.infoLabel}>Base rate</span>
+                    <span style={styles.infoValue}>{fertBaseRate} kg/acre</span>
+                  </div>
+                )}
+                {fertPricePerKg != null && (
+                  <div style={{ ...styles.infoRow, borderBottom: 'none' }}>
+                    <span style={styles.infoLabel}>Price / kg</span>
+                    <span style={styles.infoValue}>{fertCostUnit} {fertPricePerKg}</span>
+                  </div>
+                )}
+                {fertBaseRate != null && fertPricePerKg != null && (
+                  <div style={{
+                    marginTop: '8px',
+                    padding: '6px 10px',
+                    backgroundColor: '#f0fdf4',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    color: '#166534',
+                    fontWeight: 500,
+                  }}>
+                    Est. cost / acre: {fertCostUnit} {(fertBaseRate * fertPricePerKg).toLocaleString()}
+                  </div>
+                )}
+              </div>
+            )} */}
+
+            {/* SHAP explanation */}
+            {fertExplanation && (
+              <div style={styles.explanationBox}>
+                {fertExplanation}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -411,6 +519,8 @@ export default function Recommendations() {
       </div>
 
       {/* Expandable Sections */}
+
+      {/* Alternative Crops */}
       {alternativeCrops && alternativeCrops.length > 0 && (
         <div style={styles.accordionItem}>
           <button onClick={() => toggleSection('alternatives')} style={styles.accordionTrigger}>
@@ -425,7 +535,7 @@ export default function Recommendations() {
                     <span style={{ fontWeight: 500, textTransform: 'capitalize' }}>{alt.crop}</span>
                     <span style={styles.badgeSecondary}>{alt.confidence}% Match</span>
                   </div>
-                  <p style={{ fontSize: '12px', color: '#666' }}>{alt.reason}</p>
+                  <p style={{ fontSize: '12px', color: '#666', margin: 0 }}>{alt.reason}</p>
                 </div>
               ))}
             </div>
@@ -433,6 +543,74 @@ export default function Recommendations() {
         </div>
       )}
 
+      {/* Model Probabilities — crop top_k */}
+      {cropTopK.length > 1 && (
+        <div style={styles.accordionItem}>
+          <button onClick={() => toggleSection('croptopk')} style={styles.accordionTrigger}>
+            📊 Crop Model Probabilities
+            <span style={{ marginLeft: 'auto' }}>{openSections.includes('croptopk') ? '▼' : '▶'}</span>
+          </button>
+          {openSections.includes('croptopk') && (
+            <div style={styles.accordionContent}>
+              <p style={{ fontSize: '12px', color: '#6b7280', marginTop: 0, marginBottom: '12px' }}>
+                Hybrid score = ML model probability + agronomic rule scoring.
+              </p>
+              {cropTopK.map((item: any, i: number) => {
+                const hybridPct = Math.round((item.prob ?? 0) * 100);
+                const modelPct  = Math.round((item.modelProb ?? 0) * 100);
+                return (
+                  <div key={i} style={{ marginBottom: '14px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '13px' }}>
+                      <span style={{ fontWeight: i === 0 ? 600 : 400, textTransform: 'capitalize' }}>
+                        {i === 0 && '★ '}{item.label}
+                      </span>
+                      <span style={{ color: '#2c5f2d', fontWeight: 500 }}>{hybridPct}%</span>
+                    </div>
+                    <div style={styles.progressBar}>
+                      <div style={{ ...styles.progressFill, width: `${hybridPct}%`, opacity: i === 0 ? 1 : 0.55 }} />
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#9ca3af' }}>
+                      ML: {modelPct}% · Rule: {Math.round((item.ruleScore ?? 0) * 100)}%
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Model Probabilities — fertilizer top_k */}
+      {fertTopK.length > 1 && (
+        <div style={styles.accordionItem}>
+          <button onClick={() => toggleSection('ferttopk')} style={styles.accordionTrigger}>
+            🧪 Fertilizer Model Probabilities
+            <span style={{ marginLeft: 'auto' }}>{openSections.includes('ferttopk') ? '▼' : '▶'}</span>
+          </button>
+          {openSections.includes('ferttopk') && (
+            <div style={styles.accordionContent}>
+              {fertTopK.map((item: any, i: number) => {
+                const pct = Math.round((item.prob ?? 0) * 100);
+                return (
+                  <div key={i} style={{ marginBottom: '14px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '13px' }}>
+                      <span style={{ fontWeight: i === 0 ? 600 : 400, textTransform: 'capitalize' }}>
+                        {i === 0 && '★ '}{item.label}
+                      </span>
+                      <span style={{ color: '#2c5f2d', fontWeight: 500 }}>{pct}%</span>
+                    </div>
+                    <div style={styles.progressBar}>
+                      <div style={{ ...styles.progressFill, width: `${pct}%`, opacity: i === 0 ? 1 : 0.55 }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Risk Factors */}
       {riskFactors && riskFactors.length > 0 && (
         <div style={styles.accordionItem}>
           <button onClick={() => toggleSection('risks')} style={styles.accordionTrigger}>
@@ -444,7 +622,7 @@ export default function Recommendations() {
               {riskFactors.map((risk, i) => (
                 <div key={i} style={{ marginBottom: '12px' }}>
                   <div style={{ fontWeight: 500, fontSize: '13px', marginBottom: '4px' }}>{risk.factor}</div>
-                  <p style={{ fontSize: '12px', color: '#2c5f2d' }}>Action: {risk.mitigation}</p>
+                  <p style={{ fontSize: '12px', color: '#2c5f2d', margin: 0 }}>Action: {risk.mitigation}</p>
                 </div>
               ))}
             </div>
@@ -452,6 +630,7 @@ export default function Recommendations() {
         </div>
       )}
 
+      {/* Fertilization Schedule */}
       {fertilizer.applicationSchedule && fertilizer.applicationSchedule.length > 0 && (
         <div style={styles.accordionItem}>
           <button onClick={() => toggleSection('schedule')} style={styles.accordionTrigger}>
@@ -462,8 +641,20 @@ export default function Recommendations() {
             <div style={styles.accordionContent}>
               {fertilizer.applicationSchedule.map((item, i) => (
                 <div key={i} style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
-                  <div style={{ width: '40px', fontWeight: 500, fontSize: '13px' }}>Week {item.week}</div>
-                  <div style={{ fontSize: '13px', color: '#666' }}>{item.action}</div>
+                  <div style={{
+                    minWidth: '48px',
+                    fontWeight: 600,
+                    fontSize: '12px',
+                    color: '#2c5f2d',
+                    backgroundColor: '#f0fdf4',
+                    borderRadius: '4px',
+                    padding: '4px 6px',
+                    textAlign: 'center',
+                    alignSelf: 'flex-start',
+                  }}>
+                    Wk {item.week}
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#374151', paddingTop: '4px' }}>{item.action}</div>
                 </div>
               ))}
             </div>
