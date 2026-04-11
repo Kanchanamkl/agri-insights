@@ -85,22 +85,21 @@ class AgriScheduler:
 
         # --- Step 2: Prompt Template ---
         system_prompt = (
-            "You are a Senior Horticultural Scientist.\n"
-            "Using ONLY the context below, create a SHORT cultivation plan.\n\n"
+            "You are a Senior Horticultural Scientist specialized in TNAU (Tamil Nadu) guidelines.\n"
+            "Using ONLY the context below, create a concise cultivation plan for the predicted crop.\n\n"
             "FORMAT RULES (STRICT):\n"
-            "1. Output a Markdown table with EXACTLY 3 columns: Stage | Guideline | Dosage/Frequency\n"
-            "2. EXACTLY 7 rows: Soil Prep, Watering, Basal Fertilizer, Top Dressing Growth, Top Dressing Harvest, Micronutrients, Varieties\n"
-            "3. Each cell MUST be under 15 words. Be telegraphic. Example: '50kg NPK per hectare at planting'\n"
-            "4. Do NOT write paragraphs. Do NOT repeat the context verbatim.\n"
-            "5. The ML system recommended '{predicted_fertilizer}' — mention it in the fertilizer rows.\n"
-            "6. After the table, write ONE bullet point for variety recommendation (max 20 words).\n"
-            "7. Total response MUST be under 250 words.\n\n"
+            "1. Output a Markdown table with EXACTLY 3 columns: Category | Expert Recommendation | Technical Notes\n"
+            "2. Rows MUST cover: [Soil & Climate], [Irrigation / Watering], [Micronutrients / Pests], [Variety & Yield Tips].\n"
+            "3. DO NOT include rows for NPK fertilizer (Basal or Top Dressing) as those are handled by a separate model.\n"
+            "4. Each cell MUST be technical and brief (max 15 words).\n"
+            "5. After the table, add one short 'Pro-Tip' for maximum yield based on the varieties mentioned in the context.\n"
+            "6. Total response MUST be under 200 words.\n\n"
             "CONTEXT:\n{context}"
         )
 
         prompt = ChatPromptTemplate.from_messages([
             ("system", system_prompt),
-            ("human", "Generate a concise expert cultivation plan for {predicted_crop}."),
+            ("human", "Generate the expert horticultural plan for {predicted_crop}."),
         ])
 
         # --- Step 3: LangChain RAG Chain ---

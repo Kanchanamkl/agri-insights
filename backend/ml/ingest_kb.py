@@ -22,7 +22,11 @@ def ingest_csv():
         return
 
     print(f"📥 Loading structured knowledge from: {CSV_PATH}")
-    df = pd.read_csv(CSV_PATH)
+    try:
+        df = pd.read_csv(CSV_PATH, encoding='utf-8')
+    except UnicodeDecodeError:
+        print("⚠️ UTF-8 decoding failed, trying 'latin1'...")
+        df = pd.read_csv(CSV_PATH, encoding='latin1')
     
     # Fill NA values to prevent errors
     df = df.fillna("Not specified in the expert documentation.")
@@ -36,13 +40,10 @@ def ingest_csv():
         # Combine column data into a clear, descriptive text block for the LLM
         content = (
             f"Crop: {crop_name}\n"
-            f"Soil Requirements: {row['soil_type']}\n"
+            f"Soil & Climate Requirements: {row['soil_type']}\n"
             f"Watering Guidelines: {row['watering_guideline']}\n"
-            f"Basal Fertilizer: {row['basal_fertilizer']}\n"
-            f"Top Dressing 1: {row['top_dressing_1']}\n"
-            f"Top Dressing 2: {row['top_dressing_2']}\n"
-            f"Micronutrient Needs: {row['micronutrients']}\n"
-            f"Expert Variety Tips: {row['variety_tips']}"
+            f"Micronutrient Management: {row['micronutrients']}\n"
+            f"Expert Variety & Yield Tips: {row['variety_tips']}"
         )
         
         # Create LangChain Document
