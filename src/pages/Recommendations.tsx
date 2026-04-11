@@ -664,18 +664,21 @@ export default function Recommendations() {
             dangerouslySetInnerHTML={{ 
               __html: expertPlan
                 // Convert markdown tables to HTML tables
-                .replace(/\|(.+)\|\n\|[-| :]+\|\n/g, (match: string, header: string) => {
+                .replace(/\|(.+)\|\s*\n\|([-| :]{3,})\|\s*\n/g, (match: string, header: string) => {
                   const cols = header.split('|').map((c: string) => c.trim()).filter(Boolean);
                   return '<table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:13px"><thead><tr>' + 
                     cols.map((c: string) => `<th style="border:1px solid #d1d5db;padding:10px 12px;background:#f0fdf4;color:#15803d;font-weight:600;text-align:left">${c}</th>`).join('') + 
                     '</tr></thead><tbody>';
                 })
                 .replace(/\|(.+)\|/g, (match: string, row: string) => {
+                  // Skip if it's just a separator line that didn't match the header regex
+                  if (row.trim().match(/^[-| :]+$/)) return '';
                   const cells = row.split('|').map((c: string) => c.trim()).filter(Boolean);
+                  if (cells.length === 0) return '';
                   return '<tr>' + cells.map((c: string) => `<td style="border:1px solid #e5e7eb;padding:8px 12px">${c}</td>`).join('') + '</tr>';
                 })
                 // Close table
-                .replace(/<\/tr>\n(?!<tr>|<\/tbody>)/g, '</tr></tbody></table>\n')
+                .replace(/<\/tr>\n(?!(?:<tr>|<\/tbody>))/g, '</tr></tbody></table>\n')
                 // Headings
                 .replace(/### (.*)/g, '<h3 style="font-weight:700;font-size:1.05em;margin:1.2em 0 0.5em;color:#111827">$1</h3>')
                 .replace(/## (.*)/g, '<h2 style="font-weight:800;font-size:1.15em;margin:1.5em 0 0.75em;color:#111827;border-bottom:1px solid #e5e5e5;padding-bottom:0.4em">$1</h2>')

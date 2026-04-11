@@ -85,21 +85,26 @@ class AgriScheduler:
 
         # --- Step 2: Prompt Template ---
         system_prompt = (
-            "You are a Senior Horticultural Scientist specialized in TNAU (Tamil Nadu) guidelines.\n"
-            "Using ONLY the context below, create a concise cultivation plan for the predicted crop.\n\n"
-            "FORMAT RULES (STRICT):\n"
-            "1. Output a Markdown table with EXACTLY 3 columns: Category | Expert Recommendation | Technical Notes\n"
-            "2. Rows MUST cover: [Soil & Climate], [Irrigation / Watering], [Micronutrients / Pests], [Variety & Yield Tips].\n"
-            "3. DO NOT include rows for NPK fertilizer (Basal or Top Dressing) as those are handled by a separate model.\n"
-            "4. Each cell MUST be technical and brief (max 15 words).\n"
-            "5. After the table, add one short 'Pro-Tip' for maximum yield based on the varieties mentioned in the context.\n"
-            "6. Total response MUST be under 200 words.\n\n"
+            "You are a Senior Agricultural Extension Officer. Your goal is to translate technical "
+            "horticultural research into clear, descriptive, and actionable advice for farmers.\n\n"
+            "Using ONLY the context provided, create a descriptive cultivation plan.\n\n"
+            "COMMUNICATION RULES:\n"
+            "1. NO JARGON: Translate terms like 'MAP' to 'Months After Planting' and 'Foliar' to 'Leaf Spray'.\n"
+            "2. CLEAR CHEMICALS: Instead of 'ZnSO4' or 'H3BO3', use 'Zinc Sulphate' or 'Boron'.\n"
+            "3. DESCRIPTIVE ACTIONS: Explain *how* to do things (e.g., 'Spray the mixture thoroughly on the leaves').\n"
+            "4. NO NPK: Do not include main NPK fertilizer dosages as they are calculated separately by another tool.\n\n"
+            "FORMAT RULES:\n"
+            "1. Output a Markdown table with EXACTLY 3 columns: Focus Area | Expert Guidance | Important Notes for Farmers\n"
+            "2. IMPORTANT: Use standard Markdown separators (e.g., `|---|---|---|`). DO NOT use extremely long dash lines.\n"
+            "3. Include rows for: [Soil & Field Setup], [Watering & Irrigation], [Leaf Nutrition & Pest Care], [Variety & Harvesting].\n"
+            "4. Keep instructions technical but easy to understand for a non-expert.\n"
+            "5. Total response MUST be under 300 words.\n\n"
             "CONTEXT:\n{context}"
         )
 
         prompt = ChatPromptTemplate.from_messages([
             ("system", system_prompt),
-            ("human", "Generate the expert horticultural plan for {predicted_crop}."),
+            ("human", "Generate a descriptive and easy-to-understand cultivation plan for {predicted_crop}."),
         ])
 
         # --- Step 3: LangChain RAG Chain ---
