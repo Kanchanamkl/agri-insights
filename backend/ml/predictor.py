@@ -350,11 +350,7 @@ class Predictor:
         return meta
 
     def generate_application_schedule(self) -> List[Dict]:
-        return [
-            {"week": 1, "action": "Base application — Apply 50% of total fertilizer"},
-            {"week": 4, "action": "First top dressing — Apply 25% of total fertilizer"},
-            {"week": 8, "action": "Second top dressing — Apply remaining 25%"},
-        ]
+        return []
 
     # ── Heuristic insight generators (fallback when SHAP not available) ────────
     def generate_feature_importance(self, raw_input: dict) -> List[Dict]:
@@ -400,25 +396,7 @@ class Predictor:
         return sorted(importance, key=lambda x: x["impact"], reverse=True)
 
     def generate_risk_factors(self, raw_input: dict) -> List[Dict]:
-        ph       = float(raw_input.get("PH",       7.0))
-        rainfall = float(raw_input.get("Rainfall", 150))
-        risks    = []
-        if ph < 5.5:
-            risks.append({"factor": "Low soil pH (acidic)",
-                          "mitigation": "Apply lime to raise pH to 6–7 range"})
-        elif ph > 8:
-            risks.append({"factor": "High soil pH (alkaline)",
-                          "mitigation": "Add sulfur or organic matter to lower pH"})
-        if rainfall < 100:
-            risks.append({"factor": "Low rainfall",
-                          "mitigation": "Ensure adequate irrigation and mulching"})
-        elif rainfall > 300:
-            risks.append({"factor": "High rainfall",
-                          "mitigation": "Ensure proper drainage to prevent waterlogging"})
-        if not risks:
-            risks.append({"factor": "No major risks detected",
-                          "mitigation": "Continue regular monitoring and good agricultural practices"})
-        return risks
+        return []
 
     def generate_alternative_crops(self, top_k: List[Dict]) -> List[Dict]:
         alternatives = []
@@ -433,6 +411,7 @@ class Predictor:
 
     # ── Main predict ───────────────────────────────────────────────────────────
     def predict(self, request: PredictionRequest) -> Dict[str, Any]:
+        print("\n🧠 [ML FLOW] Starting Prediction Logic...", flush=True)
         if not self.models_loaded:
             raise RuntimeError("Models not loaded. Run ml/train.py first.")
 
@@ -441,14 +420,18 @@ class Predictor:
         fert_df    = FeatureMapper.extract_fert_features(request)
         raw_input  = FeatureMapper.extract_raw_dict(request)
         features   = raw_input   # alias for rule helpers
+        print(f"   [ML] Inputs extracted: {raw_input}", flush=True)
 
         warnings: List[Dict[str, str]] = []
 
         # ── Crop ML prediction ─────────────────────────────────────────────
+        print("   [ML] Executing Crop model...", flush=True)
         crop_label, crop_model_conf, crop_top_k_model = self.predict_crop(crop_df)
+        print(f"   [ML] Model suggests: {crop_label} ({crop_model_conf*100:.1f}%)", flush=True)
         is_crop_low = crop_model_conf < LOW_CONF_CROP
 
         # ── Crop rule scoring + hybrid ─────────────────────────────────────
+        print("   [ML] Calculating hybrid suitability scores...", flush=True)
         scored = []
         for item in crop_top_k_model:
             rule_score = self._rule_crop_score(item["label"], features)
@@ -464,6 +447,7 @@ class Predictor:
         scored.sort(key=lambda x: x["prob"], reverse=True)
         final_crop       = scored[0]["label"]
         final_suitability = scored[0]["prob"]
+        print(f"   [ML] Final Crop Winner: {final_crop} (Suitability: {final_suitability*100:.1f}%)", flush=True)
 
         # ── Crop SHAP explanation ──────────────────────────────────────────
         crop_explanation  = None
@@ -516,7 +500,9 @@ class Predictor:
         }
 
         # ── Fertilizer ML prediction ───────────────────────────────────────
+        print("   [ML] Executing Fertilizer model...", flush=True)
         fert_label, fert_model_conf, fert_top_k_model = self.predict_fertilizer(fert_df)
+        print(f"   [ML] Model suggests: {fert_label} ({fert_model_conf*100:.1f}%)", flush=True)
         is_fert_low = fert_model_conf < LOW_CONF_FERT
 
         # ── Fertilizer rule override ───────────────────────────────────────
@@ -603,7 +589,7 @@ class Predictor:
         else:
             feature_importance = self.generate_feature_importance(raw_input)
 
-        remark        = self.remark_map.get(final_fert, "")
+        remark        = ""
         risk_factors  = self.generate_risk_factors(raw_input)
         alt_crops     = self.generate_alternative_crops(crop_block["top_k"])
 
@@ -612,6 +598,7 @@ class Predictor:
             "crop":              crop_block,
             "fertilizer":        fertilizer_block,
             "remark":            remark,
+            "soil":              raw_input.get("Soil", "General"),
             "featureImportance": feature_importance,
             "riskFactors":       risk_factors,
             "alternativeCrops":  alt_crops,

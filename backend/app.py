@@ -5,6 +5,7 @@ import json
 
 from ml.predictor import predictor
 from ml.feature_mapper import PredictionRequest, FeatureMapper
+from ml.rag_service import AgriScheduler
 from db.database import db
 from db.models import PredictionLog
 from utils.helpers import get_logger, get_timestamp
@@ -18,6 +19,7 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 # Global init flags
 _initialized = False
 db_available = False
+scheduler = None
 
 
 def ensure_initialized():
@@ -38,6 +40,14 @@ def ensure_initialized():
     except Exception as e:
         db_available = False
         logger.warning(f"Database not available: {e}")
+
+    # Initialize RAG Scheduler
+    global scheduler
+    try:
+        scheduler = AgriScheduler()
+        logger.info("RAG Scheduler initialized")
+    except Exception as e:
+        logger.error(f"Failed to initialize RAG Scheduler: {e}")
 
     _initialized = True
 
@@ -85,7 +95,20 @@ def _normalize_prediction_payload(data: dict) -> dict:
 
 @app.before_request
 def before_request():
+    print("\n" + "⬇️" * 40)
+    print(f"📥 [REQUEST] {request.method} {request.path}")
+    if request.is_json:
+        # We print a cleaned version of JSON for readability
+        print(f"📦 [PAYLOAD] {json.dumps(request.get_json(silent=True), indent=2)}")
+    print("-" * 80, flush=True)
     ensure_initialized()
+
+@app.after_request
+def after_request(response):
+    print("-" * 80)
+    print(f"📤 [RESPONSE] Status: {response.status_code}")
+    print("⬆️" * 40 + "\n", flush=True)
+    return response
 
 
 @app.route("/health", methods=["GET"])
@@ -135,7 +158,8 @@ def predict():
 
         response = predictor.predict(pred_request)
 
- 
+        # RAG Schedule removed from main predict for performance. 
+        # Use /predict/plan to fetch it separately.
         return jsonify(response), 200
 
     except ValidationError as e:
@@ -247,6 +271,53 @@ def predict_fertilizer_only():
     except Exception as e:
         logger.error(f"Fertilizer prediction error: {e}", exc_info=True)
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/predict/plan", methods=["POST"])
+def get_cultivation_plan():
+    """Standard RAG Pipeline: FAISS retrieval → LangChain → Gemini LLM."""
+    print("\n" + "="*80)
+    print("🚀 [API REQUEST] /predict/plan initiated")
+    print("="*80)
+    
+    try:
+        ensure_initialized()
+        data = request.get_json(silent=True)
+        
+        crop = data.get("crop")
+        fert = data.get("fertilizer", "General Purpose Fertilizer")
+
+        print(f"INPUTS -> Crop: {crop}, Fert: {fert}")
+
+        if not scheduler:
+            print("❌ ERROR: AgriScheduler not initialized!")
+            return jsonify({"success": False, "error": "Internal Scheduler Init Error"}), 500
+
+        import time
+        start_time = time.time()
+        
+        rag_plan = scheduler.get_schedule(crop, fert)
+        
+        duration = time.time() - start_time
+        print(f"✨ RAG pipeline complete in {duration:.2f}s")
+
+        if rag_plan:
+            print(f"✅ SUCCESS: Returning plan ({len(rag_plan)} chars)")
+            return jsonify({
+                "success": True,
+                "rag_schedule": rag_plan,
+            })
+        else:
+            print(f"⚠️ WARNING: No plan generated for '{crop}'.")
+            return jsonify({"success": False, "error": f"No expert data available for '{crop}'"}), 404
+
+    except Exception as e:
+        logger.error(f"💥 [RAG FATAL ERROR] {str(e)}", exc_info=True)
+        return jsonify({
+            "success": False, 
+            "error": "Internal diagnostic failure", 
+            "details": str(e)
+        }), 500
 
 
 def log_prediction(request_data: dict, response_data: dict, pred_request: PredictionRequest):

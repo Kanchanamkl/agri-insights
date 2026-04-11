@@ -224,8 +224,47 @@ export default function Recommendations() {
   const navigate = useNavigate();
   const { state } = useApp();
   const [openSections, setOpenSections] = useState<string[]>([]);
+  const [expertPlan, setExpertPlan] = useState<string | null>(null);
+  const [isPlanLoading, setIsPlanLoading] = useState(false);
+  const [planError, setPlanError] = useState<string | null>(null);
 
   const recommendation = state.recommendations.find((r) => r.id === id);
+
+  const fetchExpertPlan = async () => {
+    if (!recommendation || isPlanLoading) return;
+    
+    console.log("🖱️ [FRONTEND] 'Generate Expert Plan' button clicked.");
+    setIsPlanLoading(true);
+    setPlanError(null);
+    
+    try {
+      console.log("🌐 [FRONTEND] Sending POST request to /predict/plan...");
+      const response = await fetch('http://localhost:5000/predict/plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          crop: recommendation.crop.label,
+          fertilizer: recommendation.fertilizer.label,
+        })
+      });
+      
+      const data = await response.json();
+      console.log("📥 [FRONTEND] Response received from backend:", data);
+
+      if (data.success && data.rag_schedule) {
+        console.log("✅ [FRONTEND] Plan loaded successfully.");
+        setExpertPlan(data.rag_schedule);
+      } else {
+        console.warn("⚠️ [FRONTEND] Backend returned an error:", data.error);
+        setPlanError(data.error || 'Failed to fetch expert plan');
+      }
+    } catch (err) {
+      console.error("💥 [FRONTEND] FETCH ERROR:", err);
+      setPlanError('Network error. Please try again.');
+    } finally {
+      setIsPlanLoading(false);
+    }
+  };
 
   const toggleSection = (section: string) => {
     setOpenSections(prev =>
@@ -258,6 +297,7 @@ export default function Recommendations() {
     ? (recommendation as any).warnings
     : [];
   const remark: string = (recommendation as any)?.remark ?? '';
+  const ragSchedule: string = (recommendation as any)?.rag_schedule ?? '';
 
   const cropPercent = toPercent(crop?.confidence);
   const fertPercent = toPercent(fertilizer?.confidence);
@@ -497,7 +537,7 @@ export default function Recommendations() {
       </div>
 
       {/* Feature Importance */}
-      <div style={styles.card}>
+      {/* <div style={styles.card}>
         <div style={styles.cardHeader}>
           <div style={styles.cardTitle}>Why This Recommendation?</div>
           <div style={styles.cardDescription}>Environmental and soil factors influencing this result</div>
@@ -516,7 +556,7 @@ export default function Recommendations() {
             ℹ️ No feature-importance data available.
           </div>
         )}
-      </div>
+      </div> */}
 
       {/* Expandable Sections */}
 
@@ -543,69 +583,37 @@ export default function Recommendations() {
         </div>
       )}
 
-      {/* Model Probabilities — crop top_k */}
-      {cropTopK.length > 1 && (
-        <div style={styles.accordionItem}>
-          <button onClick={() => toggleSection('croptopk')} style={styles.accordionTrigger}>
-            📊 Crop Model Probabilities
-            <span style={{ marginLeft: 'auto' }}>{openSections.includes('croptopk') ? '▼' : '▶'}</span>
-          </button>
-          {openSections.includes('croptopk') && (
-            <div style={styles.accordionContent}>
-              <p style={{ fontSize: '12px', color: '#6b7280', marginTop: 0, marginBottom: '12px' }}>
-                Hybrid score = ML model probability + agronomic rule scoring.
-              </p>
-              {cropTopK.map((item: any, i: number) => {
-                const hybridPct = Math.round((item.prob ?? 0) * 100);
-                const modelPct  = Math.round((item.modelProb ?? 0) * 100);
-                return (
-                  <div key={i} style={{ marginBottom: '14px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '13px' }}>
-                      <span style={{ fontWeight: i === 0 ? 600 : 400, textTransform: 'capitalize' }}>
-                        {i === 0 && '★ '}{item.label}
-                      </span>
-                      <span style={{ color: '#2c5f2d', fontWeight: 500 }}>{hybridPct}%</span>
-                    </div>
-                    <div style={styles.progressBar}>
-                      <div style={{ ...styles.progressFill, width: `${hybridPct}%`, opacity: i === 0 ? 1 : 0.55 }} />
-                    </div>
-                    <div style={{ fontSize: '11px', color: '#9ca3af' }}>
-                      ML: {modelPct}% · Rule: {Math.round((item.ruleScore ?? 0) * 100)}%
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
 
-      {/* Model Probabilities — fertilizer top_k */}
-      {fertTopK.length > 1 && (
-        <div style={styles.accordionItem}>
-          <button onClick={() => toggleSection('ferttopk')} style={styles.accordionTrigger}>
-            🧪 Fertilizer Model Probabilities
-            <span style={{ marginLeft: 'auto' }}>{openSections.includes('ferttopk') ? '▼' : '▶'}</span>
+
+
+      {/* Expert Plan Trigger Button */}
+      {!expertPlan && (
+        <div style={{ ...styles.card, textAlign: 'center', border: '1px dashed #2c5f2d', backgroundColor: '#f0fdf4' }}>
+          <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#2c5f2d', marginBottom: '8px' }}>
+            Elevate Your Harvest with Expert Guidance
+          </h3>
+          <p style={{ fontSize: '14px', color: '#166534', marginBottom: '20px' }}>
+            Get a precision-tailored Fertilizer and Watering schedule extracted from our 
+            certified horticultural knowledge base.
+          </p>
+          <button 
+            onClick={fetchExpertPlan} 
+            disabled={isPlanLoading}
+            style={{ 
+              ...styles.buttonPrimary, 
+              padding: '12px 32px', 
+              fontSize: '16px',
+              opacity: isPlanLoading ? 0.7 : 1,
+              transition: 'all 0.2s ease',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+            }}
+          >
+            {isPlanLoading ? '📖 Consulting Knowledge Base...' : '🚀 Generate Expert Cultivation Plan'}
           </button>
-          {openSections.includes('ferttopk') && (
-            <div style={styles.accordionContent}>
-              {fertTopK.map((item: any, i: number) => {
-                const pct = Math.round((item.prob ?? 0) * 100);
-                return (
-                  <div key={i} style={{ marginBottom: '14px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '13px' }}>
-                      <span style={{ fontWeight: i === 0 ? 600 : 400, textTransform: 'capitalize' }}>
-                        {i === 0 && '★ '}{item.label}
-                      </span>
-                      <span style={{ color: '#2c5f2d', fontWeight: 500 }}>{pct}%</span>
-                    </div>
-                    <div style={styles.progressBar}>
-                      <div style={{ ...styles.progressFill, width: `${pct}%`, opacity: i === 0 ? 1 : 0.55 }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+          {planError && (
+            <p style={{ color: '#dc2626', fontSize: '13px', marginTop: '12px', fontWeight: 500 }}>
+              {planError}
+            </p>
           )}
         </div>
       )}
@@ -630,11 +638,71 @@ export default function Recommendations() {
         </div>
       )}
 
-      {/* Fertilization Schedule */}
-      {fertilizer.applicationSchedule && fertilizer.applicationSchedule.length > 0 && (
+      {/* Expert RAG Schedule */}
+      {expertPlan && (
+        <div style={{ ...styles.card, border: '2px solid #2c5f2d', boxShadow: '0 4px 12px rgba(44, 95, 45, 0.1)' }}>
+          <div style={styles.cardHeader}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+              <span style={{ fontSize: '32px' }}>📋</span>
+              <div>
+                <div style={{ ...styles.cardTitle, color: '#2c5f2d' }}>Expert Cultivation Plan</div>
+                <div style={styles.cardDescription}>AI-Generated from FAISS Knowledge Base · Powered by Gemini</div>
+              </div>
+            </div>
+          </div>
+          <div 
+            style={{ 
+              fontSize: '14px', 
+              lineHeight: '1.7', 
+              color: '#1f2937',
+              padding: '20px',
+              backgroundColor: '#ffffff',
+              borderRadius: '8px',
+              border: '1px solid #e5e5e5',
+              overflowX: 'auto',
+            }}
+            dangerouslySetInnerHTML={{ 
+              __html: expertPlan
+                // Convert markdown tables to HTML tables
+                .replace(/\|(.+)\|\n\|[-| :]+\|\n/g, (match: string, header: string) => {
+                  const cols = header.split('|').map((c: string) => c.trim()).filter(Boolean);
+                  return '<table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:13px"><thead><tr>' + 
+                    cols.map((c: string) => `<th style="border:1px solid #d1d5db;padding:10px 12px;background:#f0fdf4;color:#15803d;font-weight:600;text-align:left">${c}</th>`).join('') + 
+                    '</tr></thead><tbody>';
+                })
+                .replace(/\|(.+)\|/g, (match: string, row: string) => {
+                  const cells = row.split('|').map((c: string) => c.trim()).filter(Boolean);
+                  return '<tr>' + cells.map((c: string) => `<td style="border:1px solid #e5e7eb;padding:8px 12px">${c}</td>`).join('') + '</tr>';
+                })
+                // Close table
+                .replace(/<\/tr>\n(?!<tr>|<\/tbody>)/g, '</tr></tbody></table>\n')
+                // Headings
+                .replace(/### (.*)/g, '<h3 style="font-weight:700;font-size:1.05em;margin:1.2em 0 0.5em;color:#111827">$1</h3>')
+                .replace(/## (.*)/g, '<h2 style="font-weight:800;font-size:1.15em;margin:1.5em 0 0.75em;color:#111827;border-bottom:1px solid #e5e5e5;padding-bottom:0.4em">$1</h2>')
+                // Bold
+                .replace(/\*\*(.*?)\*\*/g, '<strong style="color:#111827">$1</strong>')
+                // Bullet points
+                .replace(/^- (.*)/gm, '<li style="margin:4px 0;padding-left:4px">$1</li>')
+                .replace(/(<li.*<\/li>\n?)+/g, '<ul style="margin:8px 0;padding-left:20px">$&</ul>')
+                // Paragraphs
+                .split('\n').map((line: string) => {
+                  const trimmed = line.trim();
+                  if (!trimmed || trimmed.startsWith('<')) return line;
+                  return `<p style="margin:4px 0">${trimmed}</p>`;
+                }).join('\n')
+            }}
+          />
+          <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '12px', fontStyle: 'italic', textAlign: 'right' }}>
+            Source: Agri-Insights FAISS Knowledge Base · RAG Pipeline · Gemini LLM
+          </div>
+        </div>
+      )}
+
+      {/* Fertilization Schedule (Legacy Fallback) */}
+      {!expertPlan && fertilizer.applicationSchedule && fertilizer.applicationSchedule.length > 0 && (
         <div style={styles.accordionItem}>
           <button onClick={() => toggleSection('schedule')} style={styles.accordionTrigger}>
-            📅 Fertilization Schedule
+            📅 Fertilization Schedule (Legacy)
             <span style={{ marginLeft: 'auto' }}>{openSections.includes('schedule') ? '▼' : '▶'}</span>
           </button>
           {openSections.includes('schedule') && (

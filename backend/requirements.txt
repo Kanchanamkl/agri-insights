@@ -13,3 +13,9 @@ cryptography>=42.0.0
 imbalanced-learn>=0.12.3
 seaborn==0.13.2
 shap==0.46.0
+langchain
+langchain-community
+langchain-google-genai
+faiss-cpu
+pypdf
+sentence-transformers
