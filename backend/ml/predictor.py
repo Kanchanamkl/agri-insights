@@ -411,7 +411,7 @@ class Predictor:
 
     # ── Main predict ───────────────────────────────────────────────────────────
     def predict(self, request: PredictionRequest) -> Dict[str, Any]:
-        print("\n🧠 [ML FLOW] Starting Prediction Logic...", flush=True)
+        print("\n  [ML FLOW] Starting Prediction Logic...", flush=True)
         if not self.models_loaded:
             raise RuntimeError("Models not loaded. Run ml/train.py first.")
 

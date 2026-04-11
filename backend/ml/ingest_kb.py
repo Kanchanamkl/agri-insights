@@ -33,7 +33,7 @@ def ingest_csv():
 
     documents = []
     
-    print(f"🧠 Processing {len(df)} crop records...")
+    print(f"  Processing {len(df)} crop records...")
     for index, row in df.iterrows():
         crop_name = str(row['crop']).lower().strip()
         
@@ -58,7 +58,7 @@ def ingest_csv():
         documents.append(doc)
 
     # Initialize Embeddings
-    print("✨ Initializing embeddings (all-MiniLM-L6-v2)...")
+    print("   Initializing embeddings (all-MiniLM-L6-v2)...")
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
     # Create and save FAISS index
@@ -68,7 +68,7 @@ def ingest_csv():
     print(f"💾 Saving FAISS index to {DB_FAISS_PATH}...")
     vectorstore.save_local(DB_FAISS_PATH)
     
-    print("\n✅ Ingestion complete! The Expert System is now CSV-powered.")
+    print("\n  Ingestion complete! The Expert System is now CSV-powered.")
 
 if __name__ == "__main__":
     ingest_csv()

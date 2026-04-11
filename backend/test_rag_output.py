@@ -7,7 +7,7 @@ def test():
         result = scheduler.get_schedule("papaya", "General Purpose Fertilizer")
         with open("rag_test_output.txt", "w", encoding="utf-8") as f:
             f.write(result)
-        print("✅ Response written to rag_test_output.txt")
+        print("  Response written to rag_test_output.txt")
     except Exception as e:
         print(f"❌ Error: {e}")
 

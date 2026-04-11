@@ -252,7 +252,7 @@ export default function Recommendations() {
       console.log("📥 [FRONTEND] Response received from backend:", data);
 
       if (data.success && data.rag_schedule) {
-        console.log("✅ [FRONTEND] Plan loaded successfully.");
+        console.log("  [FRONTEND] Plan loaded successfully.");
         setExpertPlan(data.rag_schedule);
       } else {
         console.warn("⚠️ [FRONTEND] Backend returned an error:", data.error);
@@ -608,7 +608,7 @@ export default function Recommendations() {
               boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
             }}
           >
-            {isPlanLoading ? '📖 Consulting Knowledge Base...' : '🚀 Generate Expert Cultivation Plan'}
+            {isPlanLoading ? '📖 Consulting Knowledge Base...' : '  Generate Expert Cultivation Plan'}
           </button>
           {planError && (
             <p style={{ color: '#dc2626', fontSize: '13px', marginTop: '12px', fontWeight: 500 }}>

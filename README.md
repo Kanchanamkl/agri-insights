@@ -73,72 +73,70 @@ To connect a domain, navigate to Project > Settings > Domains and click Connect 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
 
 
-Train model : python -m ml.train
-Run model : python app.py
+## Local Setup & Run Instruction
 
+Follow these steps to set up the project on your machine.
 
+### 1. Prerequisites
+- **Node.js**: [Install Node.js](https://nodejs.org/)
+- **Python 3.10+**: [Install Python](https://www.python.org/)
 
+### 2. General Setup
+```bash
+# Clone the repository
+git clone <YOUR_GIT_URL>
+cd agri-insights
 
+# Install Frontend Dependencies
+npm install
+```
 
+### 3. Backend Setup (AI & RAG)
+The expert system requires a Python backend with a vector database.
 
-python backend/ml/ingest_kb.
+```bash
+cd backend
+# Create and activate virtual environment
+python -m venv venv
 
-backend\venv\Scripts\python -m pip install langchain langchain-community langchain-google-genai faiss-cpu pypdf sentence-transformers python-dotenv
-.\venv\Scripts\python -m pip install langchain langchain-community langchain-google-genai faiss-cpu pypdf sentence-transformers python-dotenv
-grep GOOGLE_API_KEY backend/.env
+# Windows:
+.\venv\Scripts\activate
+# Mac/Linux:
+source venv/bin/activate
 
-.\venv\Scripts\python ..\ml\ingest_kb.py
+# Install AI dependencies
+pip install -r requirements.txt
+```
 
-
-
-ls backend/data/vectorstores
-
-.\venv\Scripts\python -m pip list
-
-.\venv\Scripts\python.exe -c "import langchain; print('success')"
-
-
-c:\Users\kanchana_m\Desktop\Susandi-FYP\agri-insights\backend\venv\Scripts\python.exe c:\Users\kanchana_m\Desktop\Susandi-FYP\agri-insights\backend\ml\ingest_kb.py
-
-
-c:\Users\kanchana_m\Desktop\Susandi-FYP\agri-insights\backend\venv\Scripts\python.exe -m pip install langchain-community pypdf faiss-cpu langchain-huggingface langchain-google-genai
-
-
-
-.\venv\Scripts\python.exe ml/ingest_kb.py
-
-
-
-
-
-
-
-
-.\venv\Scripts\Activate.ps1
+### 4. Knowledge Base Ingestion (Crucial)
+You must initialize the FAISS vector store to enable the Expert Cultivation Plans.
+```bash
+# From the backend directory with venv activated
 python ml/ingest_kb.py
+```
+
+### 5. Environment Variables
+Create a file named `.env` in the `backend/` directory:
+```env
+GOOGLE_API_KEY=your_gemini_api_key_here
+```
+
+---
+
+## Running the Application
+
+### Start Backend (API)
+In the `backend/` directory with `venv` activated:
+```bash
 python app.py
-python ml/integration_example.py
+```
+
+### Start Frontend (UI)
+In a new terminal at the project root:
+```bash
+npm run dev
+```
+
+---
 
 
-
-
-
-
-
-
-(venv) PS C:\Users\kanchana_m\Desktop\Susandi-FYP\agri-insights\backend> python ml/ingest_kb.py
-Loading C:\Users\kanchana_m\Desktop\Susandi-FYP\agri-insights\backend\data\HORTICULTURE.pdf...
-Splitting 442 pages into chunks...
-Adding metadata to chunks...
-Creating vector store for 920 chunks...
-Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-Loading weights: 100%|██████████████████| 103/103 [00:00<00:00, 2084.98it/s]
-BertModel LOAD REPORT from: sentence-transformers/all-MiniLM-L6-v2
-Key                     | Status     |  |
-------------------------+------------+--+-
-embeddings.position_ids | UNEXPECTED |  |
-
-Notes:
-- UNEXPECTED:   can be ignored when loading from different task/architecture; not ok if you expect identical arch.
-Saving FAISS index to C:\Users\kanchana_m\Desktop\Susandi-FYP\agri-insights\backend\data\vectorstores...
-Ingestion complete!

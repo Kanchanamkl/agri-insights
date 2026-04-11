@@ -32,7 +32,7 @@ class AgriScheduler:
     """
 
     def __init__(self, vectorstores_path=None):
-        print("🔧 [INIT] Initializing AgriScheduler (FAISS + LLM RAG)...", flush=True)
+        print("  [INIT] Initializing AgriScheduler (FAISS + LLM RAG)...", flush=True)
 
         if vectorstores_path is None:
             base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -64,7 +64,7 @@ class AgriScheduler:
             self.embeddings,
             allow_dangerous_deserialization=True,
         )
-        print("✅ [INIT] AgriScheduler Ready.", flush=True)
+        print("  [INIT] AgriScheduler Ready.", flush=True)
 
     def get_schedule(self, predicted_crop: str, predicted_fertilizer: str) -> str | None:
         """
@@ -76,7 +76,7 @@ class AgriScheduler:
         """
         t0 = time.time()
         crop_key = predicted_crop.lower().strip()
-        print(f"\n🔍 [RAG] Starting pipeline for crop='{crop_key}'...", flush=True)
+        print(f"\n  [RAG] Starting pipeline for crop='{crop_key}'...", flush=True)
 
         # --- Step 1: FAISS Retriever ---
         retriever = self.vectorstore.as_retriever(
@@ -127,7 +127,7 @@ class AgriScheduler:
         answer = response.get("answer", "")
         print(f"   - Documents retrieved: {docs_found}", flush=True)
         print(f"   - Answer length: {len(answer)} chars", flush=True)
-        print(f"✅ [RAG] Pipeline complete! Duration: {duration:.2f}s", flush=True)
+        print(f"  [RAG] Pipeline complete! Duration: {duration:.2f}s", flush=True)
 
         return answer if answer else None
 

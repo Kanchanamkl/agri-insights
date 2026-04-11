@@ -99,15 +99,15 @@ def before_request():
     print(f"📥 [REQUEST] {request.method} {request.path}")
     if request.is_json:
         # We print a cleaned version of JSON for readability
-        print(f"📦 [PAYLOAD] {json.dumps(request.get_json(silent=True), indent=2)}")
+        print(f"  [PAYLOAD] {json.dumps(request.get_json(silent=True), indent=2)}")
     print("-" * 80, flush=True)
     ensure_initialized()
 
 @app.after_request
 def after_request(response):
     print("-" * 80)
-    print(f"📤 [RESPONSE] Status: {response.status_code}")
-    print("⬆️" * 40 + "\n", flush=True)
+    print(f"   [RESPONSE] Status: {response.status_code}")
+    print(" " * 40 + "\n", flush=True)
     return response
 
 
@@ -277,7 +277,7 @@ def predict_fertilizer_only():
 def get_cultivation_plan():
     """Standard RAG Pipeline: FAISS retrieval → LangChain → Gemini LLM."""
     print("\n" + "="*80)
-    print("🚀 [API REQUEST] /predict/plan initiated")
+    print("  [API REQUEST] /predict/plan initiated")
     print("="*80)
     
     try:
@@ -299,10 +299,10 @@ def get_cultivation_plan():
         rag_plan = scheduler.get_schedule(crop, fert)
         
         duration = time.time() - start_time
-        print(f"✨ RAG pipeline complete in {duration:.2f}s")
+        print(f"   RAG pipeline complete in {duration:.2f}s")
 
         if rag_plan:
-            print(f"✅ SUCCESS: Returning plan ({len(rag_plan)} chars)")
+            print(f"  SUCCESS: Returning plan ({len(rag_plan)} chars)")
             return jsonify({
                 "success": True,
                 "rag_schedule": rag_plan,
